@@ -1,0 +1,24 @@
+
+# archive and data files
+*.zip
+*.csv
+
+
+# Files of different vensim models
+*.CIN
+*.VCD
+*.VMF
+*.VDF
+*.VGD
+*.vdfx
+*.2mdl
+*vmfx
+
+# Python
+__pycache__
+
+# vscode
+.vscode/
+*.code-workspace
+
+
