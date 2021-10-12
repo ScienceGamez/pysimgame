@@ -24,6 +24,7 @@ class RegionComponent:
     # Stores the polygon rectangles
     _rectangles: List[Rect]
     name: str
+    color: np.ndarray  # Shape (3,)
 
     def __init__(self, surface, color, polygons_points, name=None):
         """Create a region surface.
@@ -140,6 +141,14 @@ class IlluminatisHQ(RegionComponent):
         return False
 
 
+class SingleRegion:
+    """Represent a region when there is only one region in the game."""
+
+    def __init__(self, color=np.array([0, 0, 255])) -> None:
+        """Create a region for a single model."""
+        self.color = color
+
+
 class RegionsSurface(pygame.Surface):
     """A view of the earth map."""
 
@@ -175,12 +184,14 @@ class RegionsSurface(pygame.Surface):
             self._previous_pressed = False
             self._selected_region_str = None
         else:
+            # Only one region
+            self.region_components['Single Region'] = SingleRegion()
+
             def do_nothing(*args):
                 # Return False to avoid updating in the listen function
                 return False
             # Changes the manager so that it does not handle regions
             setattr(self, 'listen', do_nothing)
-
 
     @property
     def selected_region(self):
@@ -236,12 +247,13 @@ class RegionsSurface(pygame.Surface):
         original_img_path = os.path.join(
             self.game_manager.GAME_DIR,
             'backgrounds',
-            image_file
+            'background.jpg'
         )
         if not os.path.isfile(img_path):
             if os.path.isfile(original_img_path):
                 # Convert the image to this format if not yet
-                from utils.images import resize_image
+                print('Resizing {} to {}.'.format(original_img_path, size))
+                from .utils.images import resize_image
                 resize_image(original_img_path, *size)
             else:
                 warnings.warn((

@@ -7,8 +7,8 @@ import pygame
 
 from pygame import draw
 
-import matplotlib
-matplotlib.use('module://pygame_matplotlib.backend_pygame')
+from pygame_matplotlib.gui_window import UIPlotWindow
+
 
 import matplotlib.pyplot as plt
 
@@ -21,29 +21,25 @@ REGION_COLORS = {
 }
 
 
-class GraphsSurface(pygame.Surface):
+class GraphsManager():
     """A surface for the graphs that handles which graphs are shown."""
 
-    outgraph_ratio: float = 0.1  # Part of the surface for labels and axes
-    axis_zero_zero_position: Tuple[int, int]
-
-    def __init__(self, *args, region_colors_dict,  **kwargs) -> None:
+    def __init__(self, rect: pygame.Rect, region_colors_dict, gui_manager) -> None:
         """Initialize the graphs surface.
 
         Same args as pygame.Surface().
         """
-        super().__init__(*args, **kwargs)
 
         self.previous_serie = None
         print(region_colors_dict)
         self.region_colors = region_colors_dict
-        size = self.get_size()
-        self.axis_zero_zero_position = (
-            int(size[0] * self.outgraph_ratio),
-            int(size[1] * (1 - self.outgraph_ratio))
-        )
 
-        self.figure, self.ax = plt.subplots()
+        self.figure, self.ax = plt.subplots(1, 1)
+
+        self.ui_plot_window = UIPlotWindow(
+            rect, gui_manager, self.figure,
+            resizable=True
+        )
 
     def parse_initial_serie(self, serie):
         self.previous_serie = serie
@@ -76,19 +72,14 @@ class GraphsSurface(pygame.Surface):
         if len(outputs) < 2:
             # Cannot plot lines if only one point
             return
-        self.fill('black')
         self.ax.clear()
-        self.figure.fill('white')
         # Plot the regions graphs
         for (region, variable), serie in outputs.items():
             self.ax.plot(serie, color=self.region_colors[region]/255)
-        # Plots the axis
-        draw.circle(
-            self, color='red',
-            center=self.axis_zero_zero_position, radius=20
-        )
+
         self.figure.canvas.draw()
-        self.blit(self.figure, (0, 0))
+        # Needs to recall the ui to update
+        self.ui_plot_window.get_container().set_image(self.figure)
 
     def coordinates_from_serie(self, serie):
         """Convert a serie to pixel coordinates.

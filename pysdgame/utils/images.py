@@ -7,4 +7,9 @@ def resize_image(img_file, x, y):
     img = imread(img_file)
     res = resize(img, (int(y), int(x)))
 
-    imsave("{}_{}x{}.jpg".format(img_file, x, y, ), res)
+    imsave(
+        "{}_{}x{}.jpg".format(
+            # remove the extension from name
+            ''.join(img_file.split('.')[:-1]),
+            x, y
+        ), res)

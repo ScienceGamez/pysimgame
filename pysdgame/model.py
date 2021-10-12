@@ -1,10 +1,16 @@
 """The model that runs with the game."""
+from __future__ import annotations
 import os
+import shutil
 
 from typing import Dict, List
 import numpy as np
 import pandas as pd
 import pysd
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from pysdgame.game_manager import GameManager
 
 
 POLICY_PREFIX = 'policy_'
@@ -24,21 +30,25 @@ class ModelManager:
     It also accepts dictionary of policies where policy apply to
     a model.
     """
+    game_manager: GameManager
 
     def __init__(
         self,
+        game_manager: GameManager,
         regions: List[str],
-        capture_elements: List[str],
+        capture_elements: List[str] = None,
         final_time: float = 2600,
         d_T: float = 0.5,
     ) -> None:
-        """Create a illuminati model.
+        """Create a model manager.
 
         Attributes:
             regions: name of the simuualtion regions
             capture_elements: The elements that will be returned by
-                :py:meth:`get_current_data`.
+                :py:meth:`get_current_data`. If None, will return all
+                what is available.
         """
+        self.game_manager = game_manager
         regions = regions.copy()
         self.models = {
             region: pysd.load(self.pysd_model_file())
@@ -65,6 +75,12 @@ class ModelManager:
         ))
         self.current_time = model.time()
         self.current_step = int(0)
+
+        # Check which elements should be captured
+        if capture_elements is None:
+            # None captures all elements that are part of the model
+            capture_elements = model.components._namespace.values()
+            print(capture_elements)
 
         # Create a df to store the output
         index = pd.MultiIndex.from_product([regions, capture_elements])
@@ -123,10 +139,60 @@ class ModelManager:
         old_method = getattr(model.components, method_name)
         setattr(model.components, method_name, new_method)
 
+    def read_filepath(self) -> str:
+        """Read a user given filepath and return it if exists."""
+        filepath = input('Enter filepath of the PySD model you want to use : ')
+        if os.path.isfile(filepath):
+            return filepath
+        else:
+            # Prompt again
+            print('File not found : ', filepath)
+            print('Try again.')
+            return self.read_filepath()
+
+    def parse_model_file(self, filepath: str) -> str:
+        """Parse the model file and return the new py filepath."""
+        if filepath.endswith('.mdl'):
+            # Vensim model
+            pysd.read_vensim(filepath, initialize=False)
+        elif filepath.endswith('.xmile'):
+            # Xmile model
+            pysd.read_xmile(filepath, initialize=False)
+        elif filepath.endswith('.py'):
+            # Python model
+            pass
+        else:
+            raise ValueError((
+                'Impossible to parse "{}".'
+                'Model not known. Only accepts .mdl, .py or .xmile files.'
+            ).format(os.path.basename(filepath)))
+
+        return ''.join(filepath.split('.')[:-1] + ['.py'])
 
     def pysd_model_file(self) -> str:
         """Load the file name of the pysd simulation."""
-        return os.path.join('..', 'Vensim', 'WRLD3-03', 'WRLD3-Ills-fate.py')
+        model_filepath = self.game_manager.PYGAME_SETTINGS["PySD model file"]
+        if model_filepath is None:
+            model_filepath = self.read_filepath()
+        # Where pysdgame will store the model
+        pysdgame_model_filepath = os.path.join(
+            self.game_manager.GAME_DIR,
+            os.path.basename(model_filepath)
+        )
+        if model_filepath != pysdgame_model_filepath:
+            shutil.copyfile(  # Copy to the new location
+                model_filepath,
+                pysdgame_model_filepath
+            )
+
+        # Convert the model if necessary
+        parsed_filepath = self.parse_model_file(pysdgame_model_filepath)
+
+        # now save it in the settings, so it is parsed for next time
+        self.game_manager.PYGAME_SETTINGS["PySD model file"] = parsed_filepath
+        self.game_manager.save_settings()
+
+        return parsed_filepath
 
     def _save_current_elements(self):
         for region, model in self.models.items():
@@ -136,7 +202,7 @@ class ModelManager:
             ]
 
     def step(self):
-        """Step of the Illuminati model.
+        """Step of the global model.
 
         Update all regions.
         TODO: Fix that the first step is the same as intialization.

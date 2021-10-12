@@ -5,9 +5,10 @@ import sys
 import json
 import pygame
 from pygame import display
+import pygame_gui
 import pygame_widgets
 
-from .graphs import GraphsSurface
+from .graphs import GraphsManager
 from .regions_display import RegionsSurface
 from .model import ModelManager
 
@@ -40,8 +41,15 @@ class GameManager:
         self.read_version()
         self.read_settings()
 
+        pygame.init()
         pygame.display.set_caption(game_name)
+
         self.set_fps()
+
+        self.ui_manager = pygame_gui.UIManager(
+            self.PYGAME_SETTINGS["Resolution"]
+        )
+
         self.set_game_diplays()
 
         self.setup_model()
@@ -60,36 +68,41 @@ class GameManager:
         settings_dir = os.path.join(self.GAME_DIR, 'settings')
         if not os.path.isdir(settings_dir):
             os.mkdir(settings_dir)
-
-        settings_file = os.path.join(settings_dir, 'pygame_settings.json')
+        print(settings_dir)
+        self.settings_file = os.path.join(settings_dir, 'pygame_settings.json')
         default_file_dir = os.path.dirname(os.path.abspath(__file__))
         default_settings_file = os.path.join(
             default_file_dir, 'pygame_settings.json'
         )
 
-        if not os.path.isfile(settings_file) or self.UPDATE_SETTINGS:
+        if not os.path.isfile(self.settings_file) or self.UPDATE_SETTINGS:
             # Loads the default
             with open(default_settings_file) as f:
                 default_settings = json.load(f)
 
         # Loads the user settings file
-        if os.path.isfile(settings_file):
-            with open(settings_file) as f:
+
+        if os.path.isfile(self.settings_file):
+            with open(self.settings_file) as f:
                 self.PYGAME_SETTINGS = json.load(f)
             if self.UPDATE_SETTINGS:
                 # Update settings that don't exist
-                for key, items in default_settings:
+                for key, value in default_settings.items():
                     if key not in self.PYGAME_SETTINGS:
-                        self.PYGAME_SETTINGS[key] = items
+                        self.PYGAME_SETTINGS[key] = value
         else:
             # Attributes the default settings
             self.PYGAME_SETTINGS = default_settings
 
+    def save_settings(self):
+        """Save the current settings in the setting file."""
+        with open(self.settings_file, 'w') as f:
+            json.dump(self.PYGAME_SETTINGS, f)
 
     def set_fps(self):
         """Set up FPS."""
         self.FramePerSec = pygame.time.Clock()
-        MODEL_FPS = 20
+        MODEL_FPS = self.PYGAME_SETTINGS["FPS"]
 
         self.update_model_every = int(self.PYGAME_SETTINGS["FPS"]/MODEL_FPS)
 
@@ -106,25 +119,25 @@ class GameManager:
         )
 
     def set_regions_display(self):
-        self.EARTH_DISPLAY = RegionsSurface(
+        self.REGIONS_DISPLAY = RegionsSurface(
             self,
             on_region_selected=self.on_region_selected
         )
-        self.MAIN_DISPLAY.blit(self.EARTH_DISPLAY, (0, 0))
+        self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
 
     def on_region_selected(self):
-        print(self.EARTH_DISPLAY.selected_region.name)
+        print(self.REGIONS_DISPLAY.selected_region.name)
 
     def set_graph_display(self):
-        self.GRAPHS_DISPLAY = GraphsSurface(
-            (1080, 720),
+        self.graphs_manager = GraphsManager(
+            rect=pygame.Rect(100, 100, 200, 200),
             region_colors_dict={
                 name: cmpnt.color
-                for name, cmpnt in self.EARTH_DISPLAY.region_components.items()
+                for name, cmpnt in self.REGIONS_DISPLAY.region_components.items()
                 if name is not None
             },
+            gui_manager=self.ui_manager
         )
-        self.MAIN_DISPLAY.blit(self.GRAPHS_DISPLAY, (1080, 0))
 
     def add_widget(self, widget):
         self.widgets.append(widget)
@@ -132,18 +145,16 @@ class GameManager:
 
     def setup_model(self):
         """Set up the model and the different policies applicable."""
-        # First get the elements to be shown. TODO: improve this
-        self.capture_elements = [
-            'gdp_per_capita',
-            'population',
-            'desired_food_ratio'
-        ]
+        regions_names = list(self.REGIONS_DISPLAY.region_components.keys())
 
-        regions_names = list(self.EARTH_DISPLAY.region_components.keys())
-        regions_names.remove(None)  # Fake value
-        self.model = IlluminatisModel(
+        if None in regions_names:
+            # Fake value for Easter egg region
+            regions_names.remove(None)
+
+        print(regions_names)
+        self.model = ModelManager(
+            self,
             regions_names,
-            self.capture_elements
         )
 
         # Finds out all the policies available
@@ -163,6 +174,7 @@ class GameManager:
 
         while True:
             fps_counter += 1
+            time_delta = self.FramePerSec.tick(self.PYGAME_SETTINGS["FPS"]) / 1000.
             events = pygame.event.get()
             # Lood for quit events
             for event in events:
@@ -170,13 +182,13 @@ class GameManager:
                     pygame.quit()
                     sys.exit()
 
-            blit = self.EARTH_DISPLAY.listen(events)
-            if blit:
-                self.MAIN_DISPLAY.blit(self.EARTH_DISPLAY, (0,0))
+                self.ui_manager.process_events(event)
+
+            blit = self.REGIONS_DISPLAY.listen(events)
+            self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
 
             # Handles the actions for pygame widgets
-            pygame_widgets.update(events)
-
+            self.ui_manager.update(time_delta)
 
             if fps_counter % self.update_model_every == 0:
                 # Step of the simulation model
@@ -184,11 +196,9 @@ class GameManager:
                 # Policies are applied at the step and show after
                 self.model.apply_policies(self.collected_policies)
                 self.collected_policies = {}
-                self.GRAPHS_DISPLAY.plot(self.model.outputs)
-                self.MAIN_DISPLAY.blit(
-                    self.GRAPHS_DISPLAY,
-                    self.EARTH_DISPLAY.get_rect().topright
-                )
+                self.graphs_manager.plot(self.model.outputs)
+
+            self.ui_manager.draw_ui(self.MAIN_DISPLAY)
 
             display.update()
-            self.FramePerSec.tick(self.PYGAME_SETTINGS["FPS"])
+
