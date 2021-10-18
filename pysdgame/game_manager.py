@@ -8,6 +8,8 @@ from pygame import display
 import pygame_gui
 import pygame_widgets
 
+from pysdgame.menu import MenuOverlay
+
 from .graphs import GraphsManager
 from .regions_display import RegionsSurface
 from .model import ModelManager
@@ -111,6 +113,7 @@ class GameManager:
         self.set_main_display()
         self.set_regions_display()
         self.set_graph_display()
+        self.set_menu_displays()
 
     def set_main_display(self):
         """Set up the 'big window' of the game."""
@@ -124,6 +127,15 @@ class GameManager:
             on_region_selected=self.on_region_selected
         )
         self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
+
+    def set_menu_displays(self):
+        """Set up the menu displayer of the game.
+
+        Menu buttons are set at the top right.
+        """
+        self.MENU_OVERLAY = MenuOverlay(
+            self,
+        )
 
     def on_region_selected(self):
         print(self.REGIONS_DISPLAY.selected_region.name)
