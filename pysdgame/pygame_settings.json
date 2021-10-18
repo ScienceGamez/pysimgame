@@ -4,6 +4,7 @@
     "Single Region": true,
     "PySD model file": null,
     "Themes": {
-        "Menu": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\menu.json"
+        "Menu": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\menu.json",
+        "Settings": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\settings_menu.json"
     }
 }

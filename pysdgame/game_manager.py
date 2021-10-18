@@ -8,8 +8,8 @@ from pygame import display
 import pygame_gui
 import pygame_widgets
 
-from pysdgame.menu import MenuOverlayManager
-
+from .menu import MenuOverlayManager, SettingsMenuManager
+from .utils import recursive_dict_missing_values
 from .graphs import GraphsManager
 from .regions_display import RegionsSurface
 from .model import ModelManager
@@ -28,7 +28,7 @@ class GameManager:
     BACKGROUND_COLOR = "black"
     collected_policies = {}
     GAME_DIR: str
-    UPDATE_SETTINGS: bool
+    UPDATE_SETTINGS: bool = True
 
     def __init__(self, game_name="Illuminati's Fate") -> None:
 
@@ -81,10 +81,11 @@ class GameManager:
             with open(self.settings_file) as f:
                 self.PYGAME_SETTINGS = json.load(f)
             if self.UPDATE_SETTINGS:
+
                 # Update settings that don't exist
-                for key, value in default_settings.items():
-                    if key not in self.PYGAME_SETTINGS:
-                        self.PYGAME_SETTINGS[key] = value
+                recursive_dict_missing_values(
+                    default_settings, self.PYGAME_SETTINGS
+                )
         else:
             # Attributes the default settings
             self.PYGAME_SETTINGS = default_settings
@@ -92,7 +93,7 @@ class GameManager:
     def save_settings(self):
         """Save the current settings in the setting file."""
         with open(self.settings_file, "w") as f:
-            json.dump(self.PYGAME_SETTINGS, f)
+            json.dump(self.PYGAME_SETTINGS, f, indent=2)
 
     def set_fps(self):
         """Set up FPS."""
@@ -100,6 +101,7 @@ class GameManager:
         MODEL_FPS = self.PYGAME_SETTINGS["FPS"]
 
         self.update_model_every = int(self.PYGAME_SETTINGS["FPS"] / MODEL_FPS)
+        self.fps_counter = 0
 
     def set_game_diplays(self):
         # Sets the displays
@@ -169,11 +171,9 @@ class GameManager:
         self.collected_policies[region].append(policy)
 
     def start_game_loop(self):
-        # Game loop begins
-        fps_counter = 0
 
         while True:
-            fps_counter += 1
+            self.fps_counter += 1
             time_delta = (
                 self.FramePerSec.tick(self.PYGAME_SETTINGS["FPS"]) / 1000.0
             )
@@ -194,7 +194,7 @@ class GameManager:
             self.ui_manager.update(time_delta)
             self.MENU_OVERLAY.update(time_delta)
 
-            if fps_counter % self.update_model_every == 0:
+            if self.fps_counter % self.update_model_every == 0:
                 # Step of the simulation model
                 self.model.step()
                 # Policies are applied at the step and show after
@@ -204,5 +204,33 @@ class GameManager:
 
             self.ui_manager.draw_ui(self.MAIN_DISPLAY)
             self.MENU_OVERLAY.draw_ui(self.MAIN_DISPLAY)
+
+            display.update()
+
+    def start_settings_menu_loop(self):
+        """Open the settings menu.
+
+        This requires no computation from the model.
+        """
+        menu_manager = SettingsMenuManager(self)
+        while True:
+            self.fps_counter += 1
+            time_delta = (  # Smaller tickrate is okay for the setting menu
+                self.FramePerSec.tick(20) / 1000.0
+            )
+            events = pygame.event.get()
+            # Lood for quit events
+            for event in events:
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                menu_manager.process_events(event)
+
+            # Handles the actions for pygame widgets
+            menu_manager.update(time_delta)
+
+            self.MAIN_DISPLAY.fill("black")
+            menu_manager.draw_ui(self.MAIN_DISPLAY)
 
             display.update()
