@@ -9,11 +9,12 @@ import pandas as pd
 import pysd
 
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
 
 
-POLICY_PREFIX = 'policy_'
+POLICY_PREFIX = "policy_"
 # policy convention
 # 1. POLICY_PREFIX
 # 2. the name of the policy
@@ -30,6 +31,7 @@ class ModelManager:
     It also accepts dictionary of policies where policy apply to
     a model.
     """
+
     game_manager: GameManager
 
     def __init__(
@@ -51,28 +53,25 @@ class ModelManager:
         self.game_manager = game_manager
         regions = regions.copy()
         self.models = {
-            region: pysd.load(self.pysd_model_file())
-            for region in regions
+            region: pysd.load(self.pysd_model_file()) for region in regions
         }
 
         # Initialize each model
         for model in self.models.values():
             # Can set initial conditions to the model variables
-            model.set_initial_condition('original')
+            model.set_initial_condition("original")
 
             # Set the model in run phase
-            model.time.stage = 'Run'
+            model.time.stage = "Run"
             # cleans the cache of the components
             model.components.cache.clean()
 
         self.time = model.time
 
         # Create the axis of timesteps
-        self.t_serie = iter(np.arange(
-            model.time(),
-            final_time,
-            step=d_T, dtype=float
-        ))
+        self.t_serie = iter(
+            np.arange(model.time(), final_time, step=d_T, dtype=float)
+        )
         self.current_time = model.time()
         self.current_step = int(0)
 
@@ -95,7 +94,7 @@ class ModelManager:
 
     def time(self):
         """Return the current time."""
-        raise NotImplementedError('Should be pointing to the submodel time.')
+        raise NotImplementedError("Should be pointing to the submodel time.")
 
     def _discover_policies(self) -> POLICY_DICT:
         """Return a dictionary of the following structure.
@@ -114,10 +113,11 @@ class ModelManager:
         """
         return {
             region: [
-                name[len(POLICY_PREFIX):]  # remove policy prefix
+                name[len(POLICY_PREFIX) :]  # remove policy prefix
                 for name in dir(model.components)
                 if name.startswith(POLICY_PREFIX)
-            ] for region, model in self.models.items()
+            ]
+            for region, model in self.models.items()
         }
 
     def apply_policies(self, policies: POLICY_DICT):
@@ -128,12 +128,11 @@ class ModelManager:
             for policy in policies:
                 self._apply_policy(model, policy)
 
-
     def _apply_policy(self, model, policy: str):
         """Apply the policy to the model (replacing the function)."""
         new_method = getattr(model.components, POLICY_PREFIX + policy)
         # Removes the prefix and policy name
-        method_name = '_'.join(policy.split('_')[1:])
+        method_name = "_".join(policy.split("_")[1:])
         # TODO: Apply all the functions corresponding to that policy
         # Now: only apply the one policy
         old_method = getattr(model.components, method_name)
@@ -141,33 +140,35 @@ class ModelManager:
 
     def read_filepath(self) -> str:
         """Read a user given filepath and return it if exists."""
-        filepath = input('Enter filepath of the PySD model you want to use : ')
+        filepath = input("Enter filepath of the PySD model you want to use : ")
         if os.path.isfile(filepath):
             return filepath
         else:
             # Prompt again
-            print('File not found : ', filepath)
-            print('Try again.')
+            print("File not found : ", filepath)
+            print("Try again.")
             return self.read_filepath()
 
     def parse_model_file(self, filepath: str) -> str:
         """Parse the model file and return the new py filepath."""
-        if filepath.endswith('.mdl'):
+        if filepath.endswith(".mdl"):
             # Vensim model
             pysd.read_vensim(filepath, initialize=False)
-        elif filepath.endswith('.xmile'):
+        elif filepath.endswith(".xmile"):
             # Xmile model
             pysd.read_xmile(filepath, initialize=False)
-        elif filepath.endswith('.py'):
+        elif filepath.endswith(".py"):
             # Python model
             pass
         else:
-            raise ValueError((
-                'Impossible to parse "{}".'
-                'Model not known. Only accepts .mdl, .py or .xmile files.'
-            ).format(os.path.basename(filepath)))
+            raise ValueError(
+                (
+                    'Impossible to parse "{}".'
+                    "Model not known. Only accepts .mdl, .py or .xmile files."
+                ).format(os.path.basename(filepath))
+            )
 
-        return ''.join(filepath.split('.')[:-1] + ['.py'])
+        return "".join(filepath.split(".")[:-1] + [".py"])
 
     def pysd_model_file(self) -> str:
         """Load the file name of the pysd simulation."""
@@ -176,13 +177,11 @@ class ModelManager:
             model_filepath = self.read_filepath()
         # Where pysdgame will store the model
         pysdgame_model_filepath = os.path.join(
-            self.game_manager.GAME_DIR,
-            os.path.basename(model_filepath)
+            self.game_manager.GAME_DIR, os.path.basename(model_filepath)
         )
         if model_filepath != pysdgame_model_filepath:
             shutil.copyfile(  # Copy to the new location
-                model_filepath,
-                pysdgame_model_filepath
+                model_filepath, pysdgame_model_filepath
             )
 
         # Convert the model if necessary
@@ -213,7 +212,9 @@ class ModelManager:
         # Update each region one by one
         for model in self.models.values():
             model._euler_step(self.current_time - model.time())
-            model.time.update(self.current_time)  # this will clear the stepwise caches
+            model.time.update(
+                self.current_time
+            )  # this will clear the stepwise caches
             model.components.cache.reset(self.current_time)
         # Saves right after the iteration
         self._save_current_elements()
