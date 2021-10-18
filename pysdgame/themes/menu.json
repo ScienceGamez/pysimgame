@@ -1,0 +1,35 @@
+{
+    "#menu_overlay_buttons_style":{
+        "misc":
+        {
+            "shape": "rounded_rectangle",
+            "shape_corner_radius": "10",
+            "border_width": "1",
+            "shadow_width": "2"
+        }
+    },
+    "button":
+    {
+        "prototype": "#menu_overlay_buttons_style"
+    },
+    "#open_menu_button":
+    {
+        "prototype": "#menu_overlay_buttons_style",
+        "images":
+        {
+            "normal_image": {
+                "path": "pysdgame/themes/icons/menu.png"
+            }
+        }
+    },
+    "#graphs_button":
+    {
+        "prototype": "#menu_overlay_buttons_style",
+        "images":
+        {
+            "normal_image": {
+                "path": "pysdgame/themes/icons/graphs.png"
+            }
+        }
+    }
+}

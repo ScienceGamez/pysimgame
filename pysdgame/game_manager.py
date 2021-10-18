@@ -8,7 +8,7 @@ from pygame import display
 import pygame_gui
 import pygame_widgets
 
-from pysdgame.menu import MenuOverlay
+from pysdgame.menu import MenuOverlayManager
 
 from .graphs import GraphsManager
 from .regions_display import RegionsSurface
@@ -25,16 +25,12 @@ class GameManager:
     TODO: Handle the positions of the different displays based on screen size.
     """
 
-    BACKGROUND_COLOR = 'black'
+    BACKGROUND_COLOR = "black"
     collected_policies = {}
     GAME_DIR: str
     UPDATE_SETTINGS: bool
 
-
-
-    def __init__(
-        self, game_name="Illuminati's Fate"
-    ) -> None:
+    def __init__(self, game_name="Illuminati's Fate") -> None:
 
         self.GAME_DIR = os.path.join(PYSDGAME_DIR, game_name)
         if not os.path.isdir(self.GAME_DIR):
@@ -56,9 +52,6 @@ class GameManager:
 
         self.setup_model()
 
-        # Tracks all widgets
-        self.widgets = []
-
     def read_version(self):
         """Should read the version and decide what to do based on it."""
         # TODO: implement something here that writes and reads the version
@@ -67,14 +60,14 @@ class GameManager:
     def read_settings(self):
         """Read the user settings for that game."""
         # Check the settings exist or copy them
-        settings_dir = os.path.join(self.GAME_DIR, 'settings')
+        settings_dir = os.path.join(self.GAME_DIR, "settings")
         if not os.path.isdir(settings_dir):
             os.mkdir(settings_dir)
         print(settings_dir)
-        self.settings_file = os.path.join(settings_dir, 'pygame_settings.json')
+        self.settings_file = os.path.join(settings_dir, "pygame_settings.json")
         default_file_dir = os.path.dirname(os.path.abspath(__file__))
         default_settings_file = os.path.join(
-            default_file_dir, 'pygame_settings.json'
+            default_file_dir, "pygame_settings.json"
         )
 
         if not os.path.isfile(self.settings_file) or self.UPDATE_SETTINGS:
@@ -98,7 +91,7 @@ class GameManager:
 
     def save_settings(self):
         """Save the current settings in the setting file."""
-        with open(self.settings_file, 'w') as f:
+        with open(self.settings_file, "w") as f:
             json.dump(self.PYGAME_SETTINGS, f)
 
     def set_fps(self):
@@ -106,7 +99,7 @@ class GameManager:
         self.FramePerSec = pygame.time.Clock()
         MODEL_FPS = self.PYGAME_SETTINGS["FPS"]
 
-        self.update_model_every = int(self.PYGAME_SETTINGS["FPS"]/MODEL_FPS)
+        self.update_model_every = int(self.PYGAME_SETTINGS["FPS"] / MODEL_FPS)
 
     def set_game_diplays(self):
         # Sets the displays
@@ -123,8 +116,7 @@ class GameManager:
 
     def set_regions_display(self):
         self.REGIONS_DISPLAY = RegionsSurface(
-            self,
-            on_region_selected=self.on_region_selected
+            self, on_region_selected=self.on_region_selected
         )
         self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
 
@@ -133,7 +125,7 @@ class GameManager:
 
         Menu buttons are set at the top right.
         """
-        self.MENU_OVERLAY = MenuOverlay(
+        self.MENU_OVERLAY = MenuOverlayManager(
             self,
         )
 
@@ -148,12 +140,8 @@ class GameManager:
                 for name, cmpnt in self.REGIONS_DISPLAY.region_components.items()
                 if name is not None
             },
-            gui_manager=self.ui_manager
+            gui_manager=self.ui_manager,
         )
-
-    def add_widget(self, widget):
-        self.widgets.append(widget)
-
 
     def setup_model(self):
         """Set up the model and the different policies applicable."""
@@ -186,7 +174,9 @@ class GameManager:
 
         while True:
             fps_counter += 1
-            time_delta = self.FramePerSec.tick(self.PYGAME_SETTINGS["FPS"]) / 1000.
+            time_delta = (
+                self.FramePerSec.tick(self.PYGAME_SETTINGS["FPS"]) / 1000.0
+            )
             events = pygame.event.get()
             # Lood for quit events
             for event in events:
@@ -195,12 +185,14 @@ class GameManager:
                     sys.exit()
 
                 self.ui_manager.process_events(event)
+                self.MENU_OVERLAY.process_events(event)
 
             blit = self.REGIONS_DISPLAY.listen(events)
             self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
 
             # Handles the actions for pygame widgets
             self.ui_manager.update(time_delta)
+            self.MENU_OVERLAY.update(time_delta)
 
             if fps_counter % self.update_model_every == 0:
                 # Step of the simulation model
@@ -211,6 +203,6 @@ class GameManager:
                 self.graphs_manager.plot(self.model.outputs)
 
             self.ui_manager.draw_ui(self.MAIN_DISPLAY)
+            self.MENU_OVERLAY.draw_ui(self.MAIN_DISPLAY)
 
             display.update()
-

@@ -2,5 +2,8 @@
     "FPS": 144,
     "Resolution": [1080, 720],
     "Single Region": true,
-    "PySD model file": null
+    "PySD model file": null,
+    "Themes": {
+        "Menu": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\menu.json"
+    }
 }
