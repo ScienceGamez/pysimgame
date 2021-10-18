@@ -12,19 +12,17 @@ from pygame_matplotlib.gui_window import UIPlotWindow
 
 import matplotlib.pyplot as plt
 
-COLORS_LIST = (
-    'red', 'blue', 'green', 'orange'
-)
+COLORS_LIST = ("red", "blue", "green", "orange")
 
-REGION_COLORS = {
-    ''
-}
+REGION_COLORS = {""}
 
 
-class GraphsManager():
+class GraphsManager:
     """A surface for the graphs that handles which graphs are shown."""
 
-    def __init__(self, rect: pygame.Rect, region_colors_dict, gui_manager) -> None:
+    def __init__(
+        self, rect: pygame.Rect, region_colors_dict, gui_manager
+    ) -> None:
         """Initialize the graphs surface.
 
         Same args as pygame.Surface().
@@ -37,8 +35,7 @@ class GraphsManager():
         self.figure, self.ax = plt.subplots(1, 1)
 
         self.ui_plot_window = UIPlotWindow(
-            rect, gui_manager, self.figure,
-            resizable=True
+            rect, gui_manager, self.figure, resizable=True
         )
 
     def parse_initial_serie(self, serie):
@@ -46,8 +43,9 @@ class GraphsManager():
         # Attributes a color to each region
         self.colors = {
             region: COLORS_LIST[i]
-            for i, region
-            in enumerate(serie.index.levels[0])  # Access the region names
+            for i, region in enumerate(
+                serie.index.levels[0]
+            )  # Access the region names
         }
 
     def update_graphs(self, current_serie):
@@ -75,7 +73,7 @@ class GraphsManager():
         self.ax.clear()
         # Plot the regions graphs
         for (region, variable), serie in outputs.items():
-            self.ax.plot(serie, color=self.region_colors[region]/255)
+            self.ax.plot(serie, color=self.region_colors[region] / 255)
 
         self.figure.canvas.draw()
         # Needs to recall the ui to update
@@ -99,7 +97,7 @@ class GraphsManager():
         x_norm = normalize(x_axis)
         y_norm = normalize(y_axis)
         # y starts from the bottom instead of top
-        y_norm = 1. - y_norm
+        y_norm = 1.0 - y_norm
 
         # Compute the positions on the screen
         x_screen = pixels_x * x_norm
