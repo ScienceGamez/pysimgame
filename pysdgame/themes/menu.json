@@ -22,6 +22,16 @@
             }
         }
     },
+    "#help_button":
+    {
+        "prototype": "#menu_overlay_buttons_style",
+        "images":
+        {
+            "normal_image": {
+                "path": "pysdgame/themes/icons/help.png"
+            }
+        }
+    },
     "#graphs_button":
     {
         "prototype": "#menu_overlay_buttons_style",
@@ -29,6 +39,26 @@
         {
             "normal_image": {
                 "path": "pysdgame/themes/icons/graphs.png"
+            }
+        }
+    },
+    "#stats_button":
+    {
+        "prototype": "#menu_overlay_buttons_style",
+        "images":
+        {
+            "normal_image": {
+                "path": "pysdgame/themes/icons/stats.png"
+            }
+        }
+    },
+    "#regions_button":
+    {
+        "prototype": "#menu_overlay_buttons_style",
+        "images":
+        {
+            "normal_image": {
+                "path": "pysdgame/themes/icons/regions.png"
             }
         }
     }

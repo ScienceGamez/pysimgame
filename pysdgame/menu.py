@@ -56,6 +56,24 @@ class MenuOverlayManager(pygame_gui.UIManager):
                 create_rect(1),
                 text="",
                 manager=self,
+                object_id="#help_button",
+            ),
+            UIButton(
+                create_rect(2),
+                text="",
+                manager=self,
                 object_id="#graphs_button",
+            ),
+            UIButton(
+                create_rect(3),
+                text="",
+                manager=self,
+                object_id="#stats_button",
+            ),
+            UIButton(
+                create_rect(4),
+                text="",
+                manager=self,
+                object_id="#regions_button",
             ),
         ]
