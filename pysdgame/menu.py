@@ -14,6 +14,8 @@ from pygame_gui.core.ui_element import ObjectID
 from pygame_gui.elements.ui_panel import UIPanel
 from pygame_gui.elements.ui_selection_list import UISelectionList
 
+from pysdgame.utils.dynamic_menu import UISettingsMenu
+
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
 
@@ -119,33 +121,18 @@ class SettingsMenuManager(pygame_gui.UIManager):
             theme_path=game_manager.PYGAME_SETTINGS["Themes"]["Settings"],
         )
 
-        self.scrolling_container = pygame_gui.elements.UIScrollingContainer(
-            pygame.Rect(0, 0, display_size[0] - 30, display_size[1] - 30),
+        def start_game_loop_decorator(func):
+            def decorated_func(*args, **kwargs):
+                ret = func(*args, **kwargs)
+                self.GAME_MANAGER.start_game_loop()
+
+            return decorated_func
+
+        self.menu = UISettingsMenu(
+            game_manager.MAIN_DISPLAY.get_rect(),
             self,
-        )
-        self.scrolling_container.set_scrollable_area_dimensions((1000, 4000))
-        self.test_box = pygame_gui.elements.UITextBox(
-            "Hello",
-            pygame.Rect(50, 50, 200, 100),
-            self,
-            container=self.scrolling_container.get_container(),
-            parent_element=self.scrolling_container,
-        )
-        self.test_button = pygame_gui.elements.UIButton(
-            pygame.Rect(250, 150, 100, 100),
-            "Test",
-            self,
-            self.scrolling_container.get_container(),
-        )
-        self.test_button2 = pygame_gui.elements.UIButton(
-            pygame.Rect(250, 3150, 100, 100),
-            "Test",
-            self,
-            self.scrolling_container,
+            game_manager.PYGAME_SETTINGS,
         )
 
-        # self.scroll_bar = pygame_gui.elements.UIVerticalScrollBar(
-        #    pygame.Rect(display_size[0] - 20, 0, 20, display_size[1]),
-        #    0.2,
-        #    self,
-        # )
+        # When the menu is killed, go back to game
+        self.menu.kill = start_game_loop_decorator(self.menu.kill)
