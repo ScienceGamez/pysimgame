@@ -60,6 +60,8 @@ class UIColumnContainer(UIScrollingContainer):
         """Add a UI element to the menu."""
         this_position = self._next_position
 
+        max_height = 0  # Stores the height of the elements
+
         for element in elements:
             element_rect = element.get_relative_rect()
             element.set_relative_position(
@@ -73,11 +75,10 @@ class UIColumnContainer(UIScrollingContainer):
 
             element._update_container_clip()
             self._max_width = max(self._max_width, element_rect.width)
+            max_height = max(max_height, element_rect.height)
 
         # Update for the next element
-        self._next_position = (
-            this_position + element_rect.height + self.spacing
-        )
+        self._next_position = this_position + max_height + self.spacing
 
         # Update the size of the scrollable area, which displays the menu
         self.set_scrollable_area_dimensions(

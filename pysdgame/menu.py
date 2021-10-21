@@ -44,15 +44,15 @@ class MenuOverlayManager(pygame_gui.UIManager):
             screen_resolution,
             theme_path=game_manager.PYGAME_SETTINGS["Themes"]["Menu"],
         )
-        buttons_size = relative_height * screen_resolution[1]
+        self.buttons_size = relative_height * screen_resolution[1]
 
         def create_rect(i):
             """Create a pygame.Rect for the i-eth button."""
             return pygame.Rect(
-                screen_resolution[0] - (i + 1) * buttons_size,
+                screen_resolution[0] - (i + 1) * self.buttons_size,
                 0,
-                buttons_size,
-                buttons_size,
+                self.buttons_size,
+                self.buttons_size,
             )
 
         self.overlay_buttons = [

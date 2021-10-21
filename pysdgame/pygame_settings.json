@@ -6,5 +6,9 @@
     "Themes": {
         "Menu": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\menu.json",
         "Settings": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\settings_menu.json"
+    },
+    "Display Proportions": {
+        "GraphsControl width": 0.3,
+        "Plots width": 0.3
     }
 }
