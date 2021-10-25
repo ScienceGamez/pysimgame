@@ -82,7 +82,9 @@ class ModelManager:
             print(capture_elements)
 
         # Create a df to store the output
-        index = pd.MultiIndex.from_product([regions, capture_elements])
+        index = pd.MultiIndex.from_product(
+            [regions, capture_elements], names=["regions", "elements"]
+        )
         self.outputs = pd.DataFrame(columns=index)
 
         self.capture_elements = capture_elements

@@ -28,6 +28,7 @@ class GameManager:
     BACKGROUND_COLOR = "black"
     collected_policies = {}
     GAME_DIR: str
+    GRAPHS_MANAGER: GraphsManager
     UPDATE_SETTINGS: bool = True
 
     def __init__(self, game_name="Illuminati's Fate") -> None:
@@ -135,15 +136,20 @@ class GameManager:
         print(self.REGIONS_DISPLAY.selected_region.name)
 
     def set_graph_display(self):
-        self.graphs_manager = GraphsManager(
-            rect=pygame.Rect(100, 100, 200, 200),
-            region_colors_dict={
+        self.GRAPHS_MANAGER = GraphsManager(
+            {
                 name: cmpnt.color
                 for name, cmpnt in self.REGIONS_DISPLAY.region_components.items()
                 if name is not None
             },
-            gui_manager=self.ui_manager,
+            self.ui_manager,
         )
+        self.GRAPHS_MANAGER.add_graph()
+        self.GRAPHS_MANAGER.add_graph(series=["teacup_temperature"])
+        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
+        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
+        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
+        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
 
     def setup_model(self):
         """Set up the model and the different policies applicable."""
@@ -200,7 +206,7 @@ class GameManager:
                 # Policies are applied at the step and show after
                 self.model.apply_policies(self.collected_policies)
                 self.collected_policies = {}
-                self.graphs_manager.plot(self.model.outputs)
+                self.GRAPHS_MANAGER.update(self.model.outputs)
 
             self.ui_manager.draw_ui(self.MAIN_DISPLAY)
             self.MENU_OVERLAY.draw_ui(self.MAIN_DISPLAY)

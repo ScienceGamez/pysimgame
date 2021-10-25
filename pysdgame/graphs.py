@@ -1,7 +1,18 @@
-"""Graphs models for ills fate."""
+"""Graphs models for ills fate.
+
+The Graph manager handles graphs creations and transfer of data from
+the model.
+Different graphs window can be created:
+    - Parameters evolution graph. Can plot the parameters of a model
+        though time.
+    - Regions evolution graph. Plot the same parameter across regions.
+    - Regions comparison heatmap.
+"""
 
 import os
-from typing import Tuple
+from typing import List, Tuple, Type
+
+import pandas
 from .utils.maths import normalize
 import pygame
 
@@ -16,13 +27,19 @@ COLORS_LIST = ("red", "blue", "green", "orange")
 
 REGION_COLORS = {""}
 
+Region: Type[str] = str
+
 
 class GraphsManager:
-    """A surface for the graphs that handles which graphs are shown."""
+    """A manager for graphs.
 
-    def __init__(
-        self, rect: pygame.Rect, region_colors_dict, gui_manager
-    ) -> None:
+    Register all the graphs that were created and that are now active.
+    Updates the at every step with the new data.
+    """
+
+    ui_plot_windows: List[UIPlotWindow] = []
+
+    def __init__(self, region_colors_dict, ui_manager) -> None:
         """Initialize the graphs surface.
 
         Same args as pygame.Surface().
@@ -31,53 +48,77 @@ class GraphsManager:
         self.previous_serie = None
         print(region_colors_dict)
         self.region_colors = region_colors_dict
+        self.ui_manager = ui_manager
 
-        self.figure, self.ax = plt.subplots(1, 1)
+    def parse_initial_outputs(self, model_outputs):
 
-        self.ui_plot_window = UIPlotWindow(
-            rect, gui_manager, self.figure, resizable=True
-        )
+        # Create a df containing regions and alements
+        keys_df = model_outputs.keys().to_frame(index=False)
+        keys_df["regions"].unique()
+        keys_df["elements"].unique()
 
-    def parse_initial_serie(self, serie):
-        self.previous_serie = serie
-        # Attributes a color to each region
-        self.colors = {
-            region: COLORS_LIST[i]
-            for i, region in enumerate(
-                serie.index.levels[0]
-            )  # Access the region names
-        }
+        for plot_window in self.ui_plot_windows:
+            pass
 
-    def update_graphs(self, current_serie):
-        """Add the current serie to the graphs.
+    def get_a_rect(self) -> pygame.Rect:
+        """Return a rect from a nice place in the main window.
 
-        Not Implemented.
+        TODO: make it a nice place for real...
         """
-        if self.previous_serie is None:
-            self.parse_initial_serie(current_serie)
-            return
+        return pygame.Rect(0, 0, 300, 300)
 
-        time = self.time()
-        for (region, variable), value in current_serie.items():
+    def add_graph(
+        self,
+        series: List[str] = None,
+        regions: Tuple[List[Region], Region] = None,
+    ) -> None:
+        """Add a graph to the game.
 
-            draw.line(
-                self,
-                self.colors[region],
+        Args:
+            series: The name of the variables to be plotted. If None,
+                will look at all the available series.
+            regions: The regions which should be on the plot. If None,
+                plot all the regions.
+        """
+        # Needs to recall the ui to update
+        figure, ax = plt.subplots(1, 1)
+        self.ui_plot_windows.append(
+            plot_window := UIPlotWindow(
+                self.get_a_rect(), self.ui_manager, figure, resizable=True
             )
+        )
+        plot_window.regions = regions
+        plot_window.series = series
+        plot_window.ax = ax
+        plot_window.get_container().set_image(figure)
 
-    def plot(self, outputs):
-        """Plot the outputs of the model."""
-        if len(outputs) < 2:
+    def update(self, model_outputs: pandas.DataFrame):
+        """Update the graphs based on the new outputs.
+
+        All the windows are updated with their parameters one by one.
+        """
+        if len(model_outputs) < 2:
             # Cannot plot lines if only one point
             return
-        self.ax.clear()
-        # Plot the regions graphs
-        for (region, variable), serie in outputs.items():
-            self.ax.plot(serie, color=self.region_colors[region] / 255)
 
-        self.figure.canvas.draw()
-        # Needs to recall the ui to update
-        self.ui_plot_window.get_container().set_image(self.figure)
+        for plot_window in self.ui_plot_windows:
+
+            if not plot_window.visible:
+                continue
+
+            plot_window.ax.clear()
+
+            # Create a df containing regions and alements
+            df = model_outputs.keys().to_frame(index=False)
+
+            for region in plot_window.regions or df["regions"].unique():
+                for variable in plot_window.series or df["elements"].unique():
+                    plot_window.ax.plot(
+                        model_outputs[region, variable],
+                        color=self.region_colors[region] / 255,
+                    )
+            plot_window.figuresurf.canvas.draw()
+            plot_window.get_container().set_image(plot_window.figuresurf)
 
     def coordinates_from_serie(self, serie):
         """Convert a serie to pixel coordinates.
