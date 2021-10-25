@@ -1,4 +1,5 @@
-"""Introduces several adds to `pygame gui <https://pygame-gui.readthedocs.io/en/latest/>`_.
+"""Introduce several additons to `pygame gui
+<https://pygame-gui.readthedocs.io/en/latest/>`_.
 
 A toggle button, which is the same as a
 :class:`UIButton <pygame_gui.elements.UIButton>` with additonal
@@ -29,10 +30,19 @@ Fired when a user clicks on a Toggle Button.
                 if event.ui_element == toggle_button:
                     print('current value:', event.value)
 """
-from typing import Dict, Union
+from typing import Any, Callable, Dict, List, Union
 import pygame
 import pygame_gui
 from pygame_gui.core import ui_element
+from pygame_gui.core.drawable_shapes.ellipse_drawable_shape import (
+    EllipseDrawableShape,
+)
+from pygame_gui.core.drawable_shapes.rect_drawable_shape import (
+    RectDrawableShape,
+)
+from pygame_gui.core.drawable_shapes.rounded_rect_drawable_shape import (
+    RoundedRectangleShape,
+)
 from pygame_gui.core.interfaces.container_interface import (
     IContainerLikeInterface,
 )
@@ -45,6 +55,8 @@ from pygame_gui._constants import (
     UI_BUTTON_START_PRESS,
 )
 from pygame_gui._constants import UI_BUTTON_ON_HOVERED, UI_BUTTON_ON_UNHOVERED
+
+from itertools import chain
 
 UI_TOGGLEBUTTON_TOGGLED = "ui_button_toggled"
 
@@ -83,6 +95,25 @@ class UIToggleButton(UIButton):
     """
 
     toggled: bool
+    switched_event: bool = False
+
+    colors_parameters: List[str] = [
+        "normal_bg",
+        "hovered_bg",
+        "disabled_bg",
+        "selected_bg",
+        "active_bg",
+        "normal_text",
+        "hovered_text",
+        "disabled_text",
+        "selected_text",
+        "active_text",
+        "normal_border",
+        "hovered_border",
+        "disabled_border",
+        "selected_border",
+        "active_border",
+    ]
 
     def __init__(
         self,
@@ -131,6 +162,7 @@ class UIToggleButton(UIButton):
         if consumed_event and self.pressed_event:
             # Toggle the button when it is pressed
             self.toggled = not self.toggled
+            self.switched_event = True
             # Send a toggle event
             event_data = {
                 "user_type": UI_TOGGLEBUTTON_TOGGLED,
@@ -139,15 +171,34 @@ class UIToggleButton(UIButton):
                 "value": self.toggled,
             }
             pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
+            self.rebuild_from_changed_theme_data()
 
         return consumed_event
 
+    def update(self, time_delta: float):
+        super().update(time_delta)
+        if self.alive():
+            # clear the event for the new cycle
+            self.switched_event = False
+
+    def add_if_toggled(self, s: str):
+        return "toggled_" + s if self.toggled else s
+
     def rebuild_from_changed_theme_data(self):
+        """Rebuild the button if any theming parameters have changed.
+
+        Check if any theming parameters have changed, and if so triggers
+        a full Rebuild of the button's drawable shape.
+
+        As each different types of parameters has a different implementation
+        we summarize here how they are handled for the different
+        style when toggled.
+        - colors: direcly in this method
+        - font: TODO
+        - misc: _check_misc_theme_data_changed
+        - images: TODO
         """
-        Checks if any theming parameters have changed, and if so triggers a full rebuild of the
-        button's drawable shape
-        """
-        super().rebuild_from_changed_theme_data()
+        ui_element.UIElement.rebuild_from_changed_theme_data(self)
         has_any_changed = False
 
         font = self.ui_theme.get_font(self.combined_element_ids)
@@ -155,33 +206,13 @@ class UIToggleButton(UIButton):
             self.font = font
             has_any_changed = True
 
-        elements_names = [
-            "normal_bg",
-            "hovered_bg",
-            "disabled_bg",
-            "selected_bg",
-            "active_bg",
-            "normal_text",
-            "hovered_text",
-            "disabled_text",
-            "selected_text",
-            "active_text",
-            "normal_border",
-            "hovered_border",
-            "disabled_border",
-            "selected_border",
-            "active_border",
-        ]
-
-        def add_if_toggled(s: str):
-            return "toggled_" + s if self.toggled else s
-
         cols = {
-            add_if_toggled(el_name): self.ui_theme.get_colour_or_gradient(
-                add_if_toggled(el_name),
+            el_name: self.ui_theme.get_colour_or_gradient(
+                # Workaround for the colors, to change toggled
+                self.add_if_toggled(el_name),
                 self.combined_element_ids,
             )
-            for el_name in elements_names
+            for el_name in self.colors_parameters
         }
 
         if cols != self.colours:
@@ -242,3 +273,35 @@ class UIToggleButton(UIButton):
 
         if has_any_changed:
             self.rebuild()
+
+    def rebuild(self):
+        return super().rebuild()
+
+    def _check_misc_theme_data_changed(
+        self,
+        attribute_name: str,
+        default_value: Any,
+        casting_func: Callable[[Any], Any],
+        allowed_values: Union[List, None] = None,
+    ) -> bool:
+
+        has_changed = False
+        attribute_value = default_value
+        try:
+            attribute_value = casting_func(
+                self.ui_theme.get_misc_data(
+                    # Adds the toggled name
+                    self.add_if_toggled(attribute_name),
+                    self.combined_element_ids,
+                )
+            )
+        except (LookupError, ValueError):
+            attribute_value = default_value
+        finally:
+            if allowed_values and attribute_value not in allowed_values:
+                attribute_value = default_value
+
+            if attribute_value != getattr(self, attribute_name, default_value):
+                setattr(self, attribute_name, attribute_value)
+                has_changed = True
+        return has_changed

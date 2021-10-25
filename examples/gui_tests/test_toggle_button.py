@@ -15,7 +15,10 @@ pygame.init()
 
 pygame.display.set_caption("Quick Start")
 window_surface = pygame.display.set_mode((1400, 1000))
-manager = pygame_gui.UIManager((1400, 1000))
+manager = pygame_gui.UIManager(
+    (1400, 1000),
+    theme_path=os.path.join(os.path.dirname(__file__), "theme.json"),
+)
 
 
 background = pygame.Surface((1400, 1000))

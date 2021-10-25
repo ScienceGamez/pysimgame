@@ -4,14 +4,31 @@
        "misc":
        {
           "shape": "rectangle",
-          "border_width": "2",
-          "shadow_width": "1"
+          "border_width": "8",
+          "shadow_width": "3"
        }
     },
 
     "button":
     {
-       "prototype": "#new_shape_style"
+       "prototype": "#new_shape_style",
+       "misc":{
+         "border_width": "1",
+         "toggled_border_width": "5",
+         "toggled_shape": "ellipse"
+       },
+       "colours":
+         {
+             "normal_bg":"#FF9999",
+             "toggled_normal_bg":"#CCFFCC",
+             "hovered_bg":"#35393e"
+         },
+         "images":
+         {
+             "toggled_normal_image": {
+                 "path": "pysdgame/themes/icons/menu.png"
+             }
+         }
     },
 
     "horizontal_slider":
