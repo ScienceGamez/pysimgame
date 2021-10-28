@@ -33,6 +33,7 @@ class ModelManager:
     """
 
     game_manager: GameManager
+    _elements_names: List[str] = None  # Used to internally store elements
 
     def __init__(
         self,
@@ -69,27 +70,40 @@ class ModelManager:
         self.time = model.time
 
         # Create the axis of timesteps
-        self.t_serie = iter(
-            np.arange(model.time(), final_time, step=d_T, dtype=float)
+        self.time_axis = np.arange(
+            model.time(), final_time, step=d_T, dtype=float
         )
+        self.t_serie = iter(self.time_axis)
         self.current_time = model.time()
         self.current_step = int(0)
 
         # Check which elements should be captured
         if capture_elements is None:
             # None captures all elements that are part of the model
-            capture_elements = model.components._namespace.values()
+            capture_elements = self.get_elements_names()
             print(capture_elements)
 
         # Create a df to store the output
         index = pd.MultiIndex.from_product(
-            [regions, capture_elements], names=["regions", "elements"]
+            [regions, capture_elements],
+            names=["regions", "elements"],
         )
         self.outputs = pd.DataFrame(columns=index)
+        # Sort the indexes for performance
+        self.outputs.sort_index()
 
         self.capture_elements = capture_elements
         # Saves the starting state
         self._save_current_elements()
+
+    def get_elements_names(self) -> List[str]:
+        """Return the names of the elements simulated in the model."""
+        if self._elements_names is None:
+            # Reads the first models components
+            self._elements_names = list(
+                list(self.models.values())[0].components._namespace.values()
+            )
+        return self._elements_names.copy()
 
     def __getitem__(self, key):
         return self.models[key]

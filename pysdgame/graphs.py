@@ -11,8 +11,14 @@ Different graphs window can be created:
 
 import os
 from typing import List, Tuple, Type
+from matplotlib import interactive
+import numpy as np
 
 import pandas
+from pandas.core import series
+
+from pysdgame.model import ModelManager
+from pysdgame.utils.strings import beautify_parameter_name
 from .utils.maths import normalize
 import pygame
 
@@ -38,6 +44,8 @@ class GraphsManager:
     """
 
     ui_plot_windows: List[UIPlotWindow] = []
+    model_outputs: pandas.DataFrame
+    _connected: bool = False
 
     def __init__(self, region_colors_dict, ui_manager) -> None:
         """Initialize the graphs surface.
@@ -69,14 +77,14 @@ class GraphsManager:
 
     def add_graph(
         self,
-        series: List[str] = None,
+        elements: List[str] = None,
         regions: Tuple[List[Region], Region] = None,
     ) -> None:
         """Add a graph to the game.
 
         Args:
-            series: The name of the variables to be plotted. If None,
-                will look at all the available series.
+            elements: The name of the variables to be plotted. If None,
+                will look at all the available elements.
             regions: The regions which should be on the plot. If None,
                 plot all the regions.
         """
@@ -88,9 +96,66 @@ class GraphsManager:
             )
         )
         plot_window.regions = regions
-        plot_window.series = series
+        plot_window.elements = elements
         plot_window.ax = ax
+        plot_window.figure = figure
+        plot_window.artists = []
         plot_window.get_container().set_image(figure)
+        plot_window._created = False
+
+        if self._connected:
+            self._create_plot_window(plot_window)
+
+    def _create_plot_window(self, plot_window: UIPlotWindow):
+        """Create the plot on the window.
+
+        Assume plot_window has regions and elements it need to plot.
+        """
+        if len(self.model_outputs) < 2:
+            # Cannot plot lines if only one point
+            return
+
+        # Plot all the lines required
+        for region in plot_window.regions:
+            for element in plot_window.elements:
+                if element == "time":
+                    continue
+                y = np.full_like(self.time_axis, np.nan)
+                serie = self.model_outputs[region, element]
+                y[: len(serie)] = serie.to_numpy().reshape(-1)
+                plot_window.ax.set_xlim(self.time_axis[0], self.time_axis[-1])
+                artists = plot_window.ax.plot(
+                    self.time_axis,
+                    y,
+                    color=self.region_colors[region] / 255,
+                    animated=True,
+                )
+                for a in artists:
+                    a.region = region
+                    a.element = element
+                plot_window.artists.extend(artists)
+
+        # Set a title to the window
+        self.set_window_title(plot_window)
+
+        self.full_redraw(plot_window)
+
+        # Now it is created
+        plot_window._created = True
+
+    def full_redraw(self, plot_window: UIPlotWindow):
+        plot_window.figuresurf.canvas.draw()
+
+    def set_window_title(self, plot_window: UIPlotWindow):
+        """Find out which title should be given to the window and give it."""
+        if len(plot_window.elements) == 1:
+            title = plot_window.elements[0]
+        elif len(plot_window.regions) == 1:
+            title = plot_window.regions[0]
+        else:
+            title = "Custom selection"
+
+        plot_window.set_display_title(beautify_parameter_name(title))
 
     def update(self, model_outputs: pandas.DataFrame):
         """Update the graphs based on the new outputs.
@@ -104,20 +169,33 @@ class GraphsManager:
         for plot_window in self.ui_plot_windows:
 
             if not plot_window.visible:
+                # If the window is not visible
                 continue
 
-            plot_window.ax.clear()
+            if not plot_window._created:
+                self._create_plot_window(plot_window)
 
-            # Create a df containing regions and alements
-            df = model_outputs.keys().to_frame(index=False)
+            # plot_window.ax.clear()
 
-            for region in plot_window.regions or df["regions"].unique():
-                for variable in plot_window.series or df["elements"].unique():
-                    plot_window.ax.plot(
-                        model_outputs[region, variable],
-                        color=self.region_colors[region] / 255,
+            for artist in plot_window.artists:
+                # Creates the array of y data with nan values
+                y = np.full_like(self.time_axis, np.nan)
+                serie = self.model_outputs[artist.region, artist.element]
+                y[: len(serie)] = serie.to_numpy().reshape(-1)
+                # Update the artist data
+                artist.set_ydata(y)
+                plot_window.ax.draw_artist(artist)
+
+                y_lims = plot_window.ax.get_ylim()
+                if min(y) < y_lims[0] or max(y) > y_lims[1]:
+                    MARGIN = 0.02
+                    plot_window.ax.set_ylim(
+                        (1 - MARGIN) * min(y), (1 + MARGIN) * max(y)
                     )
-            plot_window.figuresurf.canvas.draw()
+                    self.full_redraw(plot_window)
+
+            plot_window.figuresurf.canvas.blit()
+            # plot_window.figuresurf.canvas.flush_events()
             plot_window.get_container().set_image(plot_window.figuresurf)
 
     def coordinates_from_serie(self, serie):
@@ -146,3 +224,23 @@ class GraphsManager:
 
         # Return as list of pygame coordinates
         return [(x, y) for x, y in zip(x_screen, y_screen)]
+
+    def connect_to_model(self, model_manager: ModelManager):
+        """Connect the graphs display to the models."""
+        self.model_outputs = model_manager.outputs
+
+        # Create a df containing regions and alements
+        self.df_keys = self.model_outputs.keys().to_frame(index=False)
+
+        # Time axis
+        self.time_axis = model_manager.time_axis
+
+        # Check existing graphs
+        for plot_window in self.ui_plot_windows:
+            if plot_window.regions is None:
+                plot_window.regions = self.df_keys["regions"].unique()
+            if plot_window.elements is None:
+                plot_window.elements = self.df_keys["elements"].unique()
+
+        # Register connected
+        self._connected = True

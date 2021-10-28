@@ -145,11 +145,11 @@ class GameManager:
             self.ui_manager,
         )
         self.GRAPHS_MANAGER.add_graph()
-        self.GRAPHS_MANAGER.add_graph(series=["teacup_temperature"])
-        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
-        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
-        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
-        self.GRAPHS_MANAGER.add_graph(series=["heat_loss_to_room"])
+        self.GRAPHS_MANAGER.add_graph(elements=["teacup_temperature"])
+        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
+        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
+        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
+        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
 
     def setup_model(self):
         """Set up the model and the different policies applicable."""
@@ -170,6 +170,9 @@ class GameManager:
 
         # All possible unique policies
         self.policies = list(set(sum(self.policies_dict.values(), [])))
+
+        # Connects to the graphs manager
+        self.GRAPHS_MANAGER.connect_to_model(self.model)
 
     def add_policy(self, region, policy):
         if region not in self.collected_policies:
