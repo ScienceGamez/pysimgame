@@ -38,7 +38,6 @@ class ModelManager:
     def __init__(
         self,
         game_manager: GameManager,
-        regions: List[str],
         capture_elements: List[str] = None,
         final_time: float = 2600,
         d_T: float = 0.5,
@@ -52,10 +51,12 @@ class ModelManager:
                 what is available.
         """
         self.game_manager = game_manager
-        regions = regions.copy()
+        regions = game_manager.PYGAME_SETTINGS["Region Names"]
         self.models = {
             region: pysd.load(self.pysd_model_file()) for region in regions
         }
+
+        print(self.models, self.pysd_model_file())
 
         # Initialize each model
         for model in self.models.values():
@@ -81,7 +82,7 @@ class ModelManager:
         if capture_elements is None:
             # None captures all elements that are part of the model
             capture_elements = self.get_elements_names()
-            print(capture_elements)
+        print("capture_elements", capture_elements)
 
         # Create a df to store the output
         index = pd.MultiIndex.from_product(
@@ -210,6 +211,7 @@ class ModelManager:
         return parsed_filepath
 
     def _save_current_elements(self):
+        print(self.outputs)
         for region, model in self.models.items():
             self.outputs.at[model.time(), region] = [
                 getattr(model.components, key)()

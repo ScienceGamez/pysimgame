@@ -145,24 +145,12 @@ class GameManager:
             self.ui_manager,
         )
         self.GRAPHS_MANAGER.add_graph()
-        self.GRAPHS_MANAGER.add_graph(elements=["teacup_temperature"])
-        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
-        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
-        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
-        self.GRAPHS_MANAGER.add_graph(elements=["heat_loss_to_room"])
 
     def setup_model(self):
         """Set up the model and the different policies applicable."""
-        regions_names = list(self.REGIONS_DISPLAY.region_components.keys())
 
-        if None in regions_names:
-            # Fake value for Easter egg region
-            regions_names.remove(None)
-
-        print(regions_names)
         self.model = ModelManager(
             self,
-            regions_names,
         )
 
         # Finds out all the policies available

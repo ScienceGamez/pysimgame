@@ -144,7 +144,9 @@ class GraphsManager:
         plot_window._created = True
 
     def full_redraw(self, plot_window: UIPlotWindow):
-        plot_window.figuresurf.canvas.draw()
+        # figure, ax = plt.subplots(1, 1)
+
+        plot_window.figuresurf.draw(plot_window.figuresurf.canvas.renderer)
 
     def set_window_title(self, plot_window: UIPlotWindow):
         """Find out which title should be given to the window and give it."""
@@ -189,8 +191,11 @@ class GraphsManager:
                 y_lims = plot_window.ax.get_ylim()
                 if min(y) < y_lims[0] or max(y) > y_lims[1]:
                     MARGIN = 0.02
-                    plot_window.ax.set_ylim(
-                        (1 - MARGIN) * min(y), (1 + MARGIN) * max(y)
+                    plot_window.ax.update_datalim(
+                        [
+                            (self.time_axis[0], (1 - MARGIN) * min(y)),
+                            (self.time_axis[-1], (1 + MARGIN) * max(y)),
+                        ]
                     )
                     self.full_redraw(plot_window)
 

@@ -1,0 +1,180 @@
+{UTF-8}
+Births Rate=
+	Fecondity * Population * Food Fullfilemement Ratio
+	~	Individual/Year
+	~		|
+
+Deaths Rate=
+	Population / Max Life Span + PYSDG EXPORT Food
+	~	Individual/Year
+	~		|
+
+Fecondity=
+	5
+	~	Individual/ Individual / Year
+	~		|
+
+Food Available=
+	PYSDG IMPORT Food
+	~	FoodUnit/Year
+	~		|
+
+Food Consumption=
+	MIN(Food Available, Food Required Per Individual * Population)
+	~	FoodUnit/Year
+	~		|
+
+Food Consumption Desired=
+	Food Required Per Individual * Population
+	~	FoodUnit/Year
+	~		|
+
+Food Fullfilemement Ratio=
+	MIN(1, (Food Consumption / Population) / Food Required Per Individual)
+	~	Dmnl
+	~		|
+
+Food Required Per Individual=
+	20
+	~	FoodUnit / Year / Individual
+	~		|
+
+Max Life Span=
+	10
+	~	Year
+	~		|
+
+Population= INTEG (
+	-Deaths Rate + Births Rate,
+		50)
+	~	Individual
+	~		|
+
+Population as Food Resource=
+	Population * Population Available For Food Ratio
+	~	FoodUnit
+	~		|
+
+Population Available For Food Ratio=
+	0.8
+	~	FoodUnit / Individual / Year
+	~		|
+
+PYSDG EXPORT Food=
+	Population as Food Resource
+	~	
+	~		|
+
+PYSDG IMPORT Food=
+	Food Consumption Desired
+	~	FoodUnit/Year
+	~		|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 200
+	~	Year
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Year
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 
+        TIME STEP 
+	~	Year [0,?]
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 1
+	~	Year [0,?]
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*View 1
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|255-255-255|96,96,100,0
+10,1,Population,876,435,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+12,2,48,583,427,12,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,4,6,1,4,0,0,22,0,0,0,-1--1--1,,1|(784,436)|
+1,5,6,2,100,0,0,22,0,0,0,-1--1--1,,1|(656,436)|
+11,6,0,728,436,8,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,7,Births Rate,728,461,27,17,40,131,0,0,-1,0,0,0,0,0,0,0,0,0
+10,8,Fecondity,560,524,32,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,9,1,7,1,0,0,0,0,64,0,-1--1--1,,1|(775,369)|
+1,10,8,7,0,0,0,0,0,64,0,-1--1--1,,1|(637,492)|
+12,11,48,1223,435,12,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,13,15,11,4,0,0,22,0,0,0,-1--1--1,,1|(1141,435)|
+1,14,15,1,100,0,0,22,0,0,0,-1--1--1,,1|(987,435)|
+11,15,0,1064,435,8,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,16,Deaths Rate,1064,456,39,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,17,Max Life Span,1092,568,47,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,18,17,16,0,0,0,0,0,64,0,-1--1--1,,1|(1080,517)|
+1,19,1,16,1,0,0,0,0,64,0,-1--1--1,,1|(967,364)|
+10,20,PYSDG IMPORT Food,835,773,51,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,22,Food Required Per Individual,600,643,53,20,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,23,22,27,0,0,0,0,0,64,0,-1--1--1,,1|(720,607)|
+10,24,Food Available,848,676,49,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,25,24,27,0,0,0,0,0,64,0,-1--1--1,,1|(848,636)|
+1,26,20,24,0,0,0,0,0,64,0,-1--1--1,,1|(839,727)|
+10,27,Food Consumption,848,572,43,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,28,1,27,0,0,0,0,0,64,0,-1--1--1,,1|(864,496)|
+10,29,Food Fullfilemement Ratio,687,572,65,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,30,27,29,0,0,0,0,0,64,0,-1--1--1,,1|(784,572)|
+1,31,22,29,0,0,0,0,0,64,0,-1--1--1,,1|(635,611)|
+1,32,29,7,0,0,0,0,0,64,0,-1--1--1,,1|(703,521)|
+10,33,Population as Food Resource,876,292,64,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,34,1,33,0,0,0,0,0,64,0,-1--1--1,,1|(876,372)|
+10,35,PYSDG EXPORT Food,943,189,52,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,36,33,35,0,0,0,0,0,64,0,-1--1--1,,1|(905,248)|
+1,37,1,29,0,0,0,0,0,64,0,-1--1--1,,1|(788,500)|
+10,39,Population Available For Food Ratio,1028,300,48,28,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,40,39,33,0,0,0,0,0,64,0,-1--1--1,,1|(965,295)|
+1,41,35,16,1,0,0,0,0,64,0,-1--1--1,,1|(1131,297)|
+10,42,Food Consumption Desired,1084,765,64,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,43,22,42,1,0,0,0,0,64,0,-1--1--1,,1|(773,848)|
+1,44,1,42,0,0,0,0,0,64,0,-1--1--1,,1|(976,596)|
+1,45,42,20,0,0,0,0,0,64,0,-1--1--1,,1|(960,768)|
+///---\\\
+:L<%^E!@
+1:Current.vdfx
+4:Time
+5:Deaths Rate
+9:Current
+19:100,0
+24:0
+25:200
+26:200
+23:0
+15:0,0,0,0,0,0
+27:0,
+34:0,
+42:1
+72:0
+73:0
+35:Date
+36:YYYY-MM-DD
+37:2000
+38:1
+39:1
+40:0
+41:0
+95:0
+96:0
+77:0
+78:0
+93:0
+94:0
+92:0
+91:0
+90:0
+87:0
+75:
+43:
