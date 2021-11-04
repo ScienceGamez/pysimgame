@@ -8,6 +8,10 @@
             "shadow_width": "2"
         }
     },
+    "form_layout.text_box":
+    {
+        "prototype": "#menu_overlay_buttons_style"
+    },
     "button":
     {
         "prototype": "#menu_overlay_buttons_style"

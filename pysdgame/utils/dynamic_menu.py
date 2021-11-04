@@ -1,9 +1,11 @@
 """Tools to create a menu dynamically from a json/dict input."""
 import os
 from typing import Any, Dict, Union
+from enum import IntEnum, auto
 import warnings
 import pygame
 import pygame_gui
+from pygame_gui import elements
 from pygame_gui.core.interfaces.container_interface import (
     IContainerLikeInterface,
 )
@@ -19,14 +21,17 @@ from pygame_gui.windows import UIFileDialog
 
 
 class UIColumnContainer(UIScrollingContainer):
-    """Make a vertical layout where you can add elements.
+    """A vertical layout where you can add elements.
 
     Similar to usual forms layouts.
+
+    :param vertical_spacing: Vertical spacing between the elements of
+        the menu
     """
 
     # Store the position of the next element to add to the menu
     _next_position: Union[int, float] = 0
-    spacing: Union[int, float]  # Spacing between the elements of the menu
+    vertical_spacing: Union[int, float]
     _current_file_menu_name: str = None
 
     def __init__(
@@ -34,26 +39,31 @@ class UIColumnContainer(UIScrollingContainer):
         relative_rect: pygame.Rect,
         manager: IUIManagerInterface,
         *,
+        vertical_spacing: Union[int, float] = 0,
         starting_height: int = 1,
         container: Union[IContainerLikeInterface, None] = None,
         parent_element: Union[UIElement, None] = None,
         object_id: Union[ObjectID, str, None] = None,
         anchors: Union[Dict[str, str], None] = None,
         visible: int = 1,
-        spacing: Union[int, float] = 0,
     ):
         super().__init__(
             relative_rect,
             manager,
             starting_height=starting_height,
             container=container,
-            parent_element=parent_element,
-            object_id=object_id,
             anchors=anchors,
             visible=visible,
         )
 
-        self.spacing = spacing
+        self._create_valid_ids(
+            container=container,
+            parent_element=parent_element,
+            object_id=object_id,
+            element_id="column_container",
+        )
+
+        self.vertical_spacing = vertical_spacing
         self._max_width = 0
 
     def add_row(self, *elements: UIElement):
@@ -78,12 +88,144 @@ class UIColumnContainer(UIScrollingContainer):
             max_height = max(max_height, element_rect.height)
 
         # Update for the next element
-        self._next_position = this_position + max_height + self.spacing
+        self._next_position = (
+            this_position + max_height + self.vertical_spacing
+        )
 
         # Update the size of the scrollable area, which displays the menu
         self.set_scrollable_area_dimensions(
             (self._max_width, self._next_position)
         )
+
+
+class RowWrapPolicy(IntEnum):
+    """Specify how the form's rows wrap.
+
+    :attr:
+        DONT_WRAP_ROWS, Dont wrap (ignore end)
+        WRAP_LONG_ROWS, Wrap to the largest label
+    """
+
+    DONT_WRAP_ROWS = auto()
+    WRAP_LONG_ROWS = auto()
+
+
+class WidgetWrapPolicy(IntEnum):
+    """Specify how the form's wrap the widgets given.
+
+    :attr:
+        ORIGINAL_SIZE, The row size adapts to the widget
+        ADAPT_TO_LAYOUT, The widget is rescaled to fit the layout
+    """
+
+    ORIGINAL_SIZE = auto()
+    ADAPT_TO_LAYOUT = auto()
+
+
+class UIFormLayout(UIColumnContainer):
+    def __init__(
+        self,
+        relative_rect: pygame.Rect,
+        manager: IUIManagerInterface,
+        *,
+        # TODO implement wrap policy
+        row_wrap_policy: RowWrapPolicy = RowWrapPolicy.DONT_WRAP_ROWS,
+        widget_wrap_policy: RowWrapPolicy = WidgetWrapPolicy.ADAPT_TO_LAYOUT,
+        width_ratio: float = 0.5,
+        starting_height: int = 1,
+        container: Union[IContainerLikeInterface, None] = None,
+        parent_element: Union[UIElement, None] = None,
+        object_id: Union[ObjectID, str, None] = None,
+        anchors: Union[Dict[str, str], None] = None,
+        visible: int = 1,
+        vertical_spacing: Union[int, float] = 0,
+        default_height: Union[int, float] = 40,
+    ):
+        super().__init__(
+            relative_rect,
+            manager,
+            starting_height=starting_height,
+            container=container,
+            anchors=anchors,
+            visible=visible,
+            vertical_spacing=vertical_spacing,
+        )
+
+        self._create_valid_ids(
+            container=container,
+            parent_element=parent_element,
+            object_id=object_id,
+            element_id="form_layout",
+        )
+
+        self.row_wrap_policy = row_wrap_policy
+        self.widget_wrap_policy = widget_wrap_policy
+        self.label_width = width_ratio * self._view_container.rect.width
+        self.default_height = default_height
+
+    def add_row(
+        self,
+        label: Union[str, None, UIElement],
+        field: Union[str, None, UIElement] = None,
+        *other_fields: Union[str, None, UIElement],
+    ) -> None:
+        """Add a row to the form layout.
+
+        Each row is composed by a label and one or more fields.
+
+        :param label: A string or widget.
+        :param field: A widget or a string to add, defaults to None
+        """
+        elements = []
+
+        label_width = (  # Label is extended if No field is given
+            self.label_width
+            if field is not None
+            else self._view_container.rect.width
+        )
+        widgets_width = self._view_container.rect.width - self.label_width
+        if isinstance(label, str):
+            label = UILabel(
+                pygame.Rect(0, 0, label_width, self.default_height),
+                label,
+                self.ui_manager,
+                parent_element=self,
+                container=self,
+            )
+        if isinstance(label, UIElement):
+            label.set_relative_position((0, 0))
+            elements.append(label)
+
+        if isinstance(field, str):
+            field = UILabel(
+                pygame.Rect(
+                    self.label_width,
+                    0,
+                    widgets_width,
+                    self.default_height,
+                ),
+                field,
+                self.ui_manager,
+                parent_element=self,
+                container=self,
+            )
+
+        if isinstance(field, UIElement):
+            elements_list = [field] + list(other_fields)
+            for i, element in enumerate(elements_list):
+                # The elements shoud be linearly spaced
+                element_width = widgets_width / len(elements)
+                element.set_relative_position(
+                    (self.label_width + i * element_width, 0)
+                )
+                if self.widget_wrap_policy == WidgetWrapPolicy.ADAPT_TO_LAYOUT:
+                    element.set_dimensions(
+                        (element_width, self.default_height)
+                    )
+                elements.append(element)
+
+        # Add elements to the column layout
+        super().add_row(*elements)
 
 
 class UISettingsMenu(UIContainer):

@@ -8,6 +8,8 @@ from pygame import display
 import pygame_gui
 import pygame_widgets
 
+from pysdgame.types import DirPath
+
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .utils import recursive_dict_missing_values
 from .graphs import GraphsManager
@@ -15,6 +17,17 @@ from .regions_display import RegionsSurface
 from .model import ModelManager
 
 from .utils.directories import PYSDGAME_DIR
+
+
+class Game:
+    """Helper class representing a game type from pysd.
+
+    Games all have a model they are based on and a set of settings to
+    define how they should be played.
+    """
+
+    NAME: str
+    GAME_DIR: DirPath
 
 
 class GameManager:

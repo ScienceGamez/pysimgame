@@ -1,9 +1,10 @@
 {
+    "__version__": 0,
     "FPS": 144,
     "Resolution": [1080, 720],
     "Themes": {
-        "Menu": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\menu.json",
-        "Settings": "C:\\Users\\Lio\\Documents\\IlluminatisFate\\game\\pygame_pysd\\pysdgame\\themes\\settings_menu.json"
+        "Main Menu": "main_menu.json",
+        "Settings": "settings_menu.json"
     },
     "Display Proportions": {
         "GraphsControl width": 0.3,

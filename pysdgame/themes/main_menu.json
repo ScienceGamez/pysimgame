@@ -1,0 +1,43 @@
+{
+    "#font_prototype": {
+        "font": {
+            "name": "PartyConfetti",
+            "size": "20",
+            "regular_resource": {
+                "package": "pysdgame.fonts",
+                "resource": "PartyConfettiRegular-eZOn3.ttf"
+            }
+        }
+    },
+    "#main_menu_button": {
+        "prototype": "#font_prototype",
+        "colours": {
+            "normal_bg": "#a5212e",
+            "normal_text": "#c5cbe8",
+            "hovered_bg": "#000000",
+            "text_shadow": "#505050"
+        },
+        "misc": {
+            "shape": "rounded_rectangle",
+            "shape_corner_radius": "10",
+            "border_width": "1",
+            "shadow_width": "2"
+        }
+    },
+    "button": {
+        "prototype": "#font_prototype"
+    },
+    "form_layout.label": {
+        "prototype": "#font_prototype",
+        "colours": {
+            "dark_bg": "#000000",
+            "normal_text": "#c5cbd8",
+            "text_shadow": "#000000"
+        },
+        "misc": {
+            "text_shadow": "0",
+            "text_shadow_size": "0",
+            "text_shadow_offset": "0,0"
+        }
+    }
+}
