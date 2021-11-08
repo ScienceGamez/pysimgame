@@ -2,6 +2,8 @@
 
 The main menu loop.
 """
+import os
+import pathlib
 import sys
 from typing import List
 
@@ -13,7 +15,7 @@ from pygame_gui.elements import UIButton, UITextEntryLine
 from pygame_gui.windows.ui_file_dialog import UIFileDialog
 
 from pysdgame import PYSDGAME_SETTINGS
-from pysdgame.utils.directories import DESKTOP_DIR, find_theme_file
+from pysdgame.utils.directories import DESKTOP_DIR, THEMES_DIR, find_theme_file
 from pysdgame.utils.dynamic_menu import UIFormLayout
 
 
@@ -74,6 +76,62 @@ buttons.append(
 )
 
 
+def start_template_loop():
+    """Use as a template for a loop function."""
+    continue_loop = True
+
+    while continue_loop:
+
+        time_delta = CLOCK.tick(PYSDGAME_SETTINGS["FPS"]) / 1000.0
+        events = pygame.event.get()
+        # Look for quit events
+        for event in events:
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.USEREVENT:
+                print(event)
+
+            UI_MANAGER.process_events(event)
+
+        # Handles the actions for pygame widgets
+        UI_MANAGER.update(time_delta)
+
+        # Draw methods
+        MAIN_DISPLAY.fill(BACK_GROUND_COLOR)
+        UI_MANAGER.draw_ui(MAIN_DISPLAY)
+
+        display.update()
+
+
+def start_newgame_loop():
+    """Start a loop for the new game menu."""
+    continue_loop = True
+
+    while continue_loop:
+
+        time_delta = CLOCK.tick(PYSDGAME_SETTINGS["FPS"]) / 1000.0
+        events = pygame.event.get()
+        # Look for quit events
+        for event in events:
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.USEREVENT:
+                print(event)
+
+            UI_MANAGER.process_events(event)
+
+        # Handles the actions for pygame widgets
+        UI_MANAGER.update(time_delta)
+
+        # Draw methods
+        MAIN_DISPLAY.fill(BACK_GROUND_COLOR)
+        UI_MANAGER.draw_ui(MAIN_DISPLAY)
+
+        display.update()
+
+
 def start_import_model_loop():
     """Game loop for importing new model."""
     continue_loop = True
@@ -96,15 +154,31 @@ def start_import_model_loop():
     )
     layout.add_row(
         "Model File Path",
+        model_file_name_entry := UITextEntryLine(
+            pygame.Rect(0, 0, 100, 100),
+            UI_MANAGER,
+            container=layout,
+            parent_element=layout,
+        ),
+        choose_model_file_button := UIButton(
+            pygame.Rect(0, 0, 100, 100),
+            "Choose Model File",
+            UI_MANAGER,
+            container=layout,
+            parent_element=layout,
+        ),
+    )
+    layout.add_row(
+        "Custom Theme File Path",
         file_name_entry := UITextEntryLine(
             pygame.Rect(0, 0, 100, 100),
             UI_MANAGER,
             container=layout,
             parent_element=layout,
         ),
-        choose_file_button := UIButton(
+        choose_theme_file_button := UIButton(
             pygame.Rect(0, 0, 100, 100),
-            "Choose File",
+            "Choose Theme File",
             UI_MANAGER,
             container=layout,
             parent_element=layout,
@@ -114,6 +188,19 @@ def start_import_model_loop():
     layout.add_row("Download")
     layout.add_row("")  # Empty row
     layout.add_row("Not Available Yet")
+
+    launch_import_button = UIButton(
+        pygame.Rect(-250, -150, 200, 100),
+        "Launch Import",
+        UI_MANAGER,
+        tool_tip_text="Will try to import the model into pysdgame",
+        anchors={
+            "left": "right",
+            "right": "right",
+            "top": "bottom",
+            "bottom": "bottom",
+        },
+    )
 
     while continue_loop:
 
@@ -126,15 +213,47 @@ def start_import_model_loop():
                 sys.exit()
             if event.type == pygame.USEREVENT:
                 if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
-                    if event.ui_element == choose_file_button:
-                        file_dialog = UIFileDialog(
-                            pygame.Rect(160, 50, 440, 500),
-                            UI_MANAGER,
-                            window_title="Load Model File ...",
-                            initial_file_path=DESKTOP_DIR,
-                            allow_existing_files_only=True,
+                    if event.ui_element == choose_model_file_button:
+                        # Choose the file
+                        import tkinter as tk
+                        from tkinter import filedialog
+
+                        root = tk.Tk()
+                        root.withdraw()
+                        model_filepath = filedialog.askopenfilename(
+                            filetypes=[
+                                ("Vensim Model", "*.mdl"),
+                                ("Python PySD", "*.py"),
+                                ("XMILE", "*.xmile"),
+                                ("All Files", "*.*"),
+                            ],
+                            title="Choose Model File",
                         )
-                        ## TODO I waws doing the file dialog to read the model
+
+                        if os.path.isfile(model_filepath):
+                            # Show the file name selected
+                            model_file_name_entry.set_text(model_filepath)
+                    elif event.ui_element == choose_theme_file_button:
+                        # Choose the file
+                        import tkinter as tk
+                        from tkinter import filedialog
+
+                        root = tk.Tk()
+                        root.withdraw()
+                        model_filepath = filedialog.askopenfilename(
+                            filetypes=[
+                                ("Pygamegui theme file", "*.json"),
+                                ("All Files", "*.*"),
+                            ],
+                            title="Choose Theme File",
+                            initialdir=THEMES_DIR,
+                        )
+
+                        if os.path.isfile(model_filepath):
+                            # Show the file name selected
+                            file_name_entry.set_text(model_filepath)
+                    elif event.ui_element == launch_import_button:
+                        print("TODO IMPLEMENT HOW I WANT TO PARSE THE MODEL")
 
             UI_MANAGER.process_events(event)
 

@@ -166,8 +166,7 @@ class UIFormLayout(UIColumnContainer):
     def add_row(
         self,
         label: Union[str, None, UIElement],
-        field: Union[str, None, UIElement] = None,
-        *other_fields: Union[str, None, UIElement],
+        *fields: Union[str, None, UIElement],
     ) -> None:
         """Add a row to the form layout.
 
@@ -179,11 +178,8 @@ class UIFormLayout(UIColumnContainer):
         elements = []
 
         label_width = (  # Label is extended if No field is given
-            self.label_width
-            if field is not None
-            else self._view_container.rect.width
+            self.label_width if fields else self._view_container.rect.width
         )
-        widgets_width = self._view_container.rect.width - self.label_width
         if isinstance(label, str):
             label = UILabel(
                 pygame.Rect(0, 0, label_width, self.default_height),
@@ -196,33 +192,38 @@ class UIFormLayout(UIColumnContainer):
             label.set_relative_position((0, 0))
             elements.append(label)
 
-        if isinstance(field, str):
-            field = UILabel(
-                pygame.Rect(
-                    self.label_width,
-                    0,
-                    widgets_width,
-                    self.default_height,
-                ),
-                field,
-                self.ui_manager,
-                parent_element=self,
-                container=self,
-            )
+        if fields:
+            widgets_width = (
+                self._view_container.rect.width - self.label_width
+            ) / len(fields)
 
-        if isinstance(field, UIElement):
-            elements_list = [field] + list(other_fields)
-            for i, element in enumerate(elements_list):
-                # The elements shoud be linearly spaced
-                element_width = widgets_width / len(elements)
-                element.set_relative_position(
-                    (self.label_width + i * element_width, 0)
+        for i, field in enumerate(fields):
+
+            if isinstance(field, str):
+                # Make it a UIElement Label
+                field = UILabel(
+                    pygame.Rect(
+                        self.label_width,
+                        0,
+                        widgets_width,
+                        self.default_height,
+                    ),
+                    field,
+                    self.ui_manager,
+                    parent_element=self,
+                    container=self,
+                )
+
+            if isinstance(field, UIElement):
+
+                # The fields shoud be linearly spaced
+                field.set_relative_position(
+                    (self.label_width + i * widgets_width, 0)
                 )
                 if self.widget_wrap_policy == WidgetWrapPolicy.ADAPT_TO_LAYOUT:
-                    element.set_dimensions(
-                        (element_width, self.default_height)
-                    )
-                elements.append(element)
+                    field.set_dimensions((widgets_width, self.default_height))
+
+                elements.append(field)
 
         # Add elements to the column layout
         super().add_row(*elements)
