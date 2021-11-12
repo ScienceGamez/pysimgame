@@ -84,7 +84,11 @@ class UIColumnContainer(UIScrollingContainer):
             element._update_absolute_rect_position_from_anchors()
 
             element._update_container_clip()
-            self._max_width = max(self._max_width, element_rect.width)
+            self._max_width = max(
+                self._max_width,
+                element_rect.width + element.get_relative_rect().left,
+            )
+            print(self._max_width)
             max_height = max(max_height, element_rect.height)
 
         # Update for the next element

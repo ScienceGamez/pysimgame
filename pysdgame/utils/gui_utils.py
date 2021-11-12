@@ -61,6 +61,13 @@ from itertools import chain
 UI_TOGGLEBUTTON_TOGGLED = "ui_button_toggled"
 
 
+def set_button_color(button: UIButton, color: pygame.Color) -> None:
+    """Set a new color to the button and display color change."""
+    button.colours["normal_bg"] = color
+    button.colours["hovered_bg"] = color
+    button.rebuild()
+
+
 class UIToggleButton(UIButton):
     """Togglable button.
 

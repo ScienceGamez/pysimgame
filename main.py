@@ -5,18 +5,25 @@ The main menu loop.
 import os
 import pathlib
 import sys
-from typing import List
+from typing import Dict, List, Tuple
+import numpy as np
 
 import pygame
-from pygame import display, time
+from pygame import display, time, mouse
+from pygame.constants import BUTTON_LEFT
 import pygame_gui
 from pygame_gui.ui_manager import UIManager
 from pygame_gui.elements import UIButton, UITextEntryLine
 from pygame_gui.windows.ui_file_dialog import UIFileDialog
+from pygame_gui.windows import UIColourPickerDialog
 
 from pysdgame import PYSDGAME_SETTINGS
+from pysdgame import regions_display
+from pysdgame.utils import close_points
 from pysdgame.utils.directories import DESKTOP_DIR, THEMES_DIR, find_theme_file
-from pysdgame.utils.dynamic_menu import UIFormLayout
+from pysdgame.utils.dynamic_menu import UIColumnContainer, UIFormLayout
+from pysdgame.regions_display import RegionComponent, RegionsSurface
+from pysdgame.utils.gui_utils import set_button_color
 
 
 FPS = PYSDGAME_SETTINGS["FPS"]
@@ -30,6 +37,9 @@ UI_MANAGER = UIManager(
     PYSDGAME_SETTINGS["Resolution"],
     theme_path=find_theme_file(PYSDGAME_SETTINGS["Themes"]["Main Menu"]),
 )
+
+REGIONS_DICT: Dict[str, RegionComponent] = {}
+
 
 # Helpers for buttons positions
 n_buttons = 3  # Number of buttons
@@ -104,6 +114,234 @@ def start_template_loop():
         display.update()
 
 
+def start_regions_loop(background_image_filepath: pathlib.Path = None):
+    """Menu for selecting the region."""
+    continue_loop = True
+    REGIONS_LIST: List[RegionComponent] = []
+    FIRST_POINT: Tuple[int, int] = None
+    LEFT_WAS_PRESSED: bool = False
+    DRAW_MODE: bool = True  # If the user is drawing smth
+    DRAWN_POINTS: List[Tuple] = []
+
+    REGIONS_UI_MANAGER = UIManager(
+        PYSDGAME_SETTINGS["Resolution"],
+        theme_path=find_theme_file(PYSDGAME_SETTINGS["Themes"]["Main Menu"]),
+    )
+
+    _selected_region: RegionComponent = None
+
+    main_display_size = MAIN_DISPLAY.get_size()
+    menu_width = 200
+    name_width = 160
+    icons_width = 20
+    big_buttons_height = 60
+
+    # Surface to show the background image
+    background_surface = (
+        pygame.Surface(
+            (main_display_size[0] - menu_width, main_display_size[1])
+        )
+        if background_image_filepath is None
+        else pygame.image.load(background_image_filepath)
+    )
+    # Surface to show the regions on top of it
+    regions_surface = pygame.Surface(
+        background_surface.get_size(), pygame.SRCALPHA
+    )
+    background_anchor = (0, 0)
+
+    new_region_button = UIButton(
+        pygame.Rect(-menu_width, 0, menu_width, big_buttons_height),
+        "New Region",
+        REGIONS_UI_MANAGER,
+        tool_tip_text="Create a new region",
+        anchors={
+            "left": "right",
+            "right": "right",
+            "top": "top",
+            "bottom": "bottom",
+        },
+    )
+    stop_drawing_button = UIButton(
+        pygame.Rect(
+            -menu_width,
+            -2 * big_buttons_height,
+            menu_width,
+            big_buttons_height,
+        ),
+        "Validate polygon",
+        REGIONS_UI_MANAGER,
+        tool_tip_text="Stop the current polygon drawing",
+        anchors={
+            "left": "right",
+            "right": "right",
+            "top": "bottom",
+            "bottom": "bottom",
+        },
+    )
+    stop_drawing_button.hide()
+
+    regions_container = UIColumnContainer(
+        pygame.Rect(
+            -menu_width,
+            big_buttons_height,
+            menu_width + 20,
+            MAIN_DISPLAY.get_size()[1] - big_buttons_height,
+        ),
+        REGIONS_UI_MANAGER,
+        anchors={
+            "left": "right",
+            "right": "right",
+            "top": "top",
+            "bottom": "bottom",
+        },
+        object_id="regions_container",
+    )
+    # Add something to remeber the components
+    regions_container.component_rows = []
+
+    def _add_region_line(region_component: RegionComponent = None):
+        if region_component is None:
+            # Create a region component
+            name = "Region {}"
+            i = 0
+            # Ensure the name is not already present
+            while name.format(i) in REGIONS_DICT:
+                i += 1
+            # Find optimal equidistant triangle using x = sqrt(3)/2*y
+            # (0,0), (x, 0), (x/2, y)
+            region_component = RegionComponent(
+                regions_surface,
+                pygame.Color(255, 0, 0),
+                name=name.format(i),
+            )
+        # Adds widgets that correspond to the boxes
+        region_component.text_box = UITextEntryLine(
+            pygame.Rect(0, 0, name_width, 30),
+            REGIONS_UI_MANAGER,
+            container=regions_container,
+        )
+        region_component.text_box.set_text(region_component.name)
+        region_component.color_button = UIButton(
+            pygame.Rect(name_width, 0, icons_width, 30),
+            "",
+            REGIONS_UI_MANAGER,
+            container=regions_container,
+            object_id="color_button",
+        )
+        region_component.new_button = UIButton(
+            pygame.Rect(name_width + icons_width, 0, icons_width, 30),
+            "+",
+            REGIONS_UI_MANAGER,
+            container=regions_container,
+            object_id="new_poly_button",
+        )
+        # Set the color of the button to the one of the region
+        set_button_color(region_component.color_button, region_component.color)
+        region_component.color_button.region_component = region_component
+        region_component.new_button.region_component = region_component
+
+        REGIONS_DICT[region_component.name] = region_component
+        regions_container.add_row(
+            region_component.text_box,
+            region_component.color_button,
+            region_component.new_button,
+        )
+
+    while continue_loop:
+
+        time_delta = CLOCK.tick(PYSDGAME_SETTINGS["FPS"]) / 1000.0
+        events = pygame.event.get()
+        # Look for quit events
+        for event in events:
+            REGIONS_UI_MANAGER.process_events(event)
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.USEREVENT:
+                if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
+                    if event.ui_element == new_region_button:
+                        _add_region_line()
+                    elif event.ui_element == stop_drawing_button:
+                        DRAW_MODE = False
+                        stop_drawing_button.hide()
+                    elif (
+                        event.ui_object_id == "regions_container.color_button"
+                    ):
+                        # Start a color selection window
+                        color_picker = UIColourPickerDialog(
+                            pygame.Rect(160, 50, 420, 400),
+                            REGIONS_UI_MANAGER,
+                            window_title="Change Colour of {}".format(
+                                event.ui_element.region_component.name
+                            ),
+                            initial_colour=pygame.Color(255, 0, 0),
+                        )
+                        color_picker.region = event.ui_element.region_component
+                    elif (
+                        event.ui_object_id
+                        == "regions_container.new_poly_button"
+                    ):
+                        # Start to draw a polygon
+                        DRAW_MODE = True
+                        FIRST_POINT = None
+                        event.ui_element.region_component.polygons.append(
+                            []  # New list to store the new polygon
+                        )
+                        # Current polygon points to that list
+                        DRAWN_POINTS = (
+                            event.ui_element.region_component.polygons[-1]
+                        )
+                        stop_drawing_button.show()
+
+                elif (
+                    event.user_type
+                    == pygame_gui.UI_COLOUR_PICKER_COLOUR_PICKED
+                ):
+                    event.ui_element.region.color = event.colour
+                    set_button_color(
+                        event.ui_element.region.color_button,
+                        event.colour,
+                    )
+                elif event.user_type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
+                    text_entry: UITextEntryLine = event.ui_element
+                    print("TODO implement that")
+                    print(text_entry.get_text())
+
+        if DRAW_MODE:
+
+            # Finds out user mouse movement
+            LEFT_PRESSED = mouse.get_pressed()[0]  # 0 is left button
+            if not LEFT_PRESSED and LEFT_WAS_PRESSED:  # Release
+                # Add the point to polygon
+                position = mouse.get_pos()
+                if FIRST_POINT is None:
+                    FIRST_POINT = position
+
+                bg_size = regions_surface.get_size()
+                if position[0] > bg_size[0] or position[1] > bg_size[1]:
+                    pass  # out of the drawing screen
+                else:
+                    # Add the click position to the drawn polygon
+                    DRAWN_POINTS.append(position)
+
+            LEFT_WAS_PRESSED = LEFT_PRESSED
+
+        # Handles the actions for pygame widgets
+        REGIONS_UI_MANAGER.update(time_delta)
+
+        # Draw methods
+        MAIN_DISPLAY.fill(BACK_GROUND_COLOR)
+        MAIN_DISPLAY.blit(background_surface, background_anchor)
+        regions_surface.fill(pygame.Color(255, 255, 255, 0))
+        for key, region in REGIONS_DICT.items():
+            region.show()
+        MAIN_DISPLAY.blit(regions_surface, background_anchor)
+        REGIONS_UI_MANAGER.draw_ui(MAIN_DISPLAY)
+
+        display.update()
+
+
 def start_newgame_loop():
     """Start a loop for the new game menu."""
     continue_loop = True
@@ -152,6 +390,7 @@ def start_import_model_loop():
             parent_element=layout,
         ),
     )
+
     layout.add_row(
         "Model File Path",
         model_file_name_entry := UITextEntryLine(
@@ -168,6 +407,8 @@ def start_import_model_loop():
             parent_element=layout,
         ),
     )
+    model_filepath = None
+
     layout.add_row(
         "Custom Theme File Path",
         file_name_entry := UITextEntryLine(
@@ -179,6 +420,34 @@ def start_import_model_loop():
         choose_theme_file_button := UIButton(
             pygame.Rect(0, 0, 100, 100),
             "Choose Theme File",
+            UI_MANAGER,
+            container=layout,
+            parent_element=layout,
+        ),
+    )
+    theme_filepath = None
+    layout.add_row(
+        "Background Image",
+        background_file_name_entry := UITextEntryLine(
+            pygame.Rect(0, 0, 100, 100),
+            UI_MANAGER,
+            container=layout,
+            parent_element=layout,
+        ),
+        choose_background_file_button := UIButton(
+            pygame.Rect(0, 0, 100, 100),
+            "Choose Image",
+            UI_MANAGER,
+            container=layout,
+            parent_element=layout,
+        ),
+    )
+    background_filepath = None
+    layout.add_row(
+        "Regions",
+        define_regions_button := UIButton(
+            pygame.Rect(0, 0, 100, 100),
+            "Define",
             UI_MANAGER,
             container=layout,
             parent_element=layout,
@@ -220,19 +489,23 @@ def start_import_model_loop():
 
                         root = tk.Tk()
                         root.withdraw()
-                        model_filepath = filedialog.askopenfilename(
-                            filetypes=[
-                                ("Vensim Model", "*.mdl"),
-                                ("Python PySD", "*.py"),
-                                ("XMILE", "*.xmile"),
-                                ("All Files", "*.*"),
-                            ],
-                            title="Choose Model File",
+                        print(os.environ)
+                        model_filepath = pathlib.Path(
+                            filedialog.askopenfilename(
+                                filetypes=[
+                                    ("Vensim Model", "*.mdl"),
+                                    ("Python PySD", "*.py"),
+                                    ("XMILE", "*.xmile"),
+                                    ("All Files", "*.*"),
+                                ],
+                                title="Choose Model File",
+                                initialdir=os.environ["HOMEPATH"],
+                            )
                         )
 
                         if os.path.isfile(model_filepath):
                             # Show the file name selected
-                            model_file_name_entry.set_text(model_filepath)
+                            model_file_name_entry.set_text(model_filepath.name)
                     elif event.ui_element == choose_theme_file_button:
                         # Choose the file
                         import tkinter as tk
@@ -240,18 +513,62 @@ def start_import_model_loop():
 
                         root = tk.Tk()
                         root.withdraw()
-                        model_filepath = filedialog.askopenfilename(
-                            filetypes=[
-                                ("Pygamegui theme file", "*.json"),
-                                ("All Files", "*.*"),
-                            ],
-                            title="Choose Theme File",
-                            initialdir=THEMES_DIR,
+                        theme_filepath = pathlib.Path(
+                            filedialog.askopenfilename(
+                                filetypes=[
+                                    ("Pygamegui theme file", "*.json"),
+                                    ("All Files", "*.*"),
+                                ],
+                                title="Choose Theme File",
+                                initialdir=THEMES_DIR,
+                            )
                         )
 
-                        if os.path.isfile(model_filepath):
+                        if os.path.isfile(theme_filepath):
                             # Show the file name selected
-                            file_name_entry.set_text(model_filepath)
+                            file_name_entry.set_text(theme_filepath.stem)
+                    elif event.ui_element == choose_background_file_button:
+                        # Choose the file
+                        import tkinter as tk
+                        from tkinter import filedialog
+
+                        root = tk.Tk()
+                        root.withdraw()
+                        background_filepath = pathlib.Path(
+                            filedialog.askopenfilename(
+                                filetypes=[
+                                    (
+                                        "Image Formats Supported by Pygame",
+                                        [
+                                            "*.jpg",
+                                            "*.jpeg",
+                                            "*.png",
+                                            "*.gif",
+                                            "*.bmp",
+                                            "*.pcx",
+                                            "*.tga",
+                                            "*.tif",
+                                            "*.lbm",
+                                            "*.pbm",
+                                            "*.ppm",
+                                            "*.xpm",
+                                        ],
+                                    ),
+                                    ("All Files", "*.*"),
+                                ],
+                                title="Choose Theme File",
+                                initialdir=os.environ["HOMEPATH"],
+                            )
+                        )
+
+                        if os.path.isfile(background_filepath):
+                            # Show the file name selected
+                            background_file_name_entry.set_text(
+                                background_filepath.stem
+                            )
+                    elif event.ui_element == define_regions_button:
+                        print("start_regions")
+                        start_regions_loop(theme_filepath)
                     elif event.ui_element == launch_import_button:
                         print("TODO IMPLEMENT HOW I WANT TO PARSE THE MODEL")
 

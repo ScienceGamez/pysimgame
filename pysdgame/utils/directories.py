@@ -1,5 +1,6 @@
 """Utility functions for handling directories."""
 import os
+import pathlib
 import pysdgame
 
 from pysdgame.types import FilePath
@@ -7,7 +8,7 @@ from pysdgame.types import FilePath
 # TODO: check for linux and macos
 _app_data_dir = os.environ["APPDATA"]
 
-PYSDGAME_DIR = os.path.join(_app_data_dir, "pysdgame")
+PYSDGAME_DIR = pathlib.PurePath(_app_data_dir, "pysdgame")
 
 THEMES_DIR = os.path.join(PYSDGAME_DIR, "themes")
 DEFAULT_THEMES_DIR = os.path.join(*pysdgame.__path__, "themes")
