@@ -1,6 +1,6 @@
 """Utility module."""
 
-
+import logging
 from typing import Tuple
 
 
@@ -32,3 +32,24 @@ def close_points(
         abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
         < PIXEL_THRESHOLD
     )
+
+
+class _HintDisplay:
+    """Display hints for the user on his screen.
+
+    Currently only prints in terminal but could put things on screen
+    in the future.
+    """
+
+    def __main__(self):
+        """Create the hint displayer."""
+        # TODO implement this to have proper on screan display
+        logger = logging.getLogger(__name__)
+        pass
+
+    def show(self, text: str):
+        """Show the text as hint."""
+        print(text)
+
+
+HINT_DISPLAY = _HintDisplay()

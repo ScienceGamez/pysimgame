@@ -10,12 +10,20 @@ _app_data_dir = os.environ["APPDATA"]
 
 PYSDGAME_DIR = pathlib.PurePath(_app_data_dir, "pysdgame")
 
+# Themes can be shared across the different games
 THEMES_DIR = os.path.join(PYSDGAME_DIR, "themes")
 DEFAULT_THEMES_DIR = os.path.join(*pysdgame.__path__, "themes")
 
 SETTINGS_DIR = os.path.join(PYSDGAME_DIR, "settings")
 
 DESKTOP_DIR = os.path.join(os.path.join(os.environ["USERPROFILE"]), "Desktop")
+
+REGIONS_FILE_NAME = "regions.json"
+THEME_FILENAME = "theme.json"
+MODEL_FILESTEM = "model"
+BACKGROUND_DIR_NAME = "backgrounds"
+ORIGINAL_BACKGROUND_FILESTEM = "orginal"
+GAME_SETTINGS_FILENAME = "settings.json"
 
 
 # Creates the pysdgame dir if not created

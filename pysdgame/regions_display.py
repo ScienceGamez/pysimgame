@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, List
+from typing import Any, Dict, List
 import warnings
 import pygame
 from pygame import Rect, Surface, draw, mouse
 import numpy as np
 
 from typing import TYPE_CHECKING
+
+from pysdgame.utils import HINT_DISPLAY
 
 if TYPE_CHECKING:
     from .game_manager import GameManager
@@ -25,9 +27,11 @@ class RegionComponent:
     # Stores the polygon rectangles
     _rectangles: List[Rect]
     name: str
-    color: np.ndarray  # Shape (3,)
+    color: pygame.Color
 
-    def __init__(self, surface, color, polygons_points=None, name=None):
+    def __init__(
+        self, surface, color: pygame.Color, polygons_points=None, name=None
+    ):
         """Create a region surface.
 
         Arguments:
@@ -57,6 +61,28 @@ class RegionComponent:
             _REGION_COUNTER += 1
 
         self.name = name
+
+    def __repr__(self) -> str:
+        return "-".join((self.name, str(self.color)))
+
+    def to_dict(self) -> dict:
+        """Return a dictionary representation of the region.
+
+        Useful for storing the region in json files.
+        """
+        return {
+            "color": tuple(self.color),
+            "name": self.name,
+            "polygons": self.polygons,
+        }
+
+    def from_dict(self, region_dict: Dict[str, Any]) -> RegionComponent:
+        return RegionComponent(
+            None,  # surface will need to be attributed later
+            pygame.Color(*region_dict["color"]),
+            polygons_points=region_dict["polygons"],
+            name=region_dict["name"],
+        )
 
     def collidepoint(self, *args):
         """Return true if a point is inside the region."""
@@ -120,6 +146,47 @@ class RegionComponent:
                         [(coord[0], coord[1]) for coord in coords],
                     )
                 )
+
+
+def validate_regions_dict(
+    regions_dict: Dict[str, RegionComponent], display: bool = True
+) -> bool:
+    """Validate whether the region dict given is valid.
+
+    Validity of a region dict includes the following:
+
+        * Regions names should be different
+        * Regions names should have at least one character
+        * Regions should have at least one polygon
+    """
+
+    # Register whether the regions chosen are a valid set
+    valid_set = True
+    names = []
+    hint_msgs = []  # Tracks the messages to display
+    for region in regions_dict.values():
+        if region.name in names:
+            # Regions names should be different
+            valid_set = False
+            hint_msgs.append(
+                "{} region is present more than once.".format(region.name)
+            )
+        elif len(region.name) < 1:
+            valid_set = False
+            hint_msgs.append("A region has a name with no character.")
+        elif len(region.polygons) < 1:
+            # Regions should have at least one polygon
+            valid_set = False
+            hint_msgs.append("Region '{}' has no polygon.".format(region.name))
+        else:
+            # Valid case
+            names.append(region.name)
+            pass
+
+    if display and not valid_set:
+        HINT_DISPLAY.show("\n".join(hint_msgs))
+
+    return valid_set
 
 
 class IlluminatisHQ(RegionComponent):

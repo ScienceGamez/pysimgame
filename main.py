@@ -4,6 +4,7 @@ The main menu loop.
 """
 import os
 import pathlib
+import shutil
 import sys
 from typing import Dict, List, Tuple
 import numpy as np
@@ -13,16 +14,25 @@ from pygame import display, time, mouse
 from pygame.constants import BUTTON_LEFT
 import pygame_gui
 from pygame_gui.ui_manager import UIManager
-from pygame_gui.elements import UIButton, UITextEntryLine
+from pygame_gui.elements import UIButton, UITextEntryLine, UILabel
 from pygame_gui.windows.ui_file_dialog import UIFileDialog
 from pygame_gui.windows import UIColourPickerDialog
 
-from pysdgame import PYSDGAME_SETTINGS
-from pysdgame import regions_display
-from pysdgame.utils import close_points
-from pysdgame.utils.directories import DESKTOP_DIR, THEMES_DIR, find_theme_file
+from pysdgame import PYSDGAME_SETTINGS, logger
+from pysdgame.new_game import error_popup, import_game
+from pysdgame.utils import HINT_DISPLAY, close_points
+from pysdgame.utils.directories import (
+    DESKTOP_DIR,
+    PYSDGAME_DIR,
+    THEMES_DIR,
+    find_theme_file,
+)
 from pysdgame.utils.dynamic_menu import UIColumnContainer, UIFormLayout
-from pysdgame.regions_display import RegionComponent, RegionsSurface
+from pysdgame.regions_display import (
+    RegionComponent,
+    RegionsSurface,
+    validate_regions_dict,
+)
 from pysdgame.utils.gui_utils import set_button_color
 
 
@@ -117,7 +127,6 @@ def start_template_loop():
 def start_regions_loop(background_image_filepath: pathlib.Path = None):
     """Menu for selecting the region."""
     continue_loop = True
-    REGIONS_LIST: List[RegionComponent] = []
     FIRST_POINT: Tuple[int, int] = None
     LEFT_WAS_PRESSED: bool = False
     DRAW_MODE: bool = True  # If the user is drawing smth
@@ -127,8 +136,6 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
         PYSDGAME_SETTINGS["Resolution"],
         theme_path=find_theme_file(PYSDGAME_SETTINGS["Themes"]["Main Menu"]),
     )
-
-    _selected_region: RegionComponent = None
 
     main_display_size = MAIN_DISPLAY.get_size()
     menu_width = 200
@@ -181,6 +188,23 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
     )
     stop_drawing_button.hide()
 
+    validate_regions_button = UIButton(
+        pygame.Rect(
+            -menu_width,
+            -big_buttons_height,
+            menu_width,
+            big_buttons_height,
+        ),
+        "Validate regions",
+        REGIONS_UI_MANAGER,
+        anchors={
+            "left": "right",
+            "right": "right",
+            "top": "bottom",
+            "bottom": "bottom",
+        },
+    )
+
     regions_container = UIColumnContainer(
         pygame.Rect(
             -menu_width,
@@ -215,13 +239,17 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
                 pygame.Color(255, 0, 0),
                 name=name.format(i),
             )
-        # Adds widgets that correspond to the boxes
+
+        # Text Box for the region's name
         region_component.text_box = UITextEntryLine(
             pygame.Rect(0, 0, name_width, 30),
             REGIONS_UI_MANAGER,
             container=regions_container,
         )
         region_component.text_box.set_text(region_component.name)
+        region_component.text_box.region_component = region_component
+
+        # Button for region's color selection
         region_component.color_button = UIButton(
             pygame.Rect(name_width, 0, icons_width, 30),
             "",
@@ -229,6 +257,7 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
             container=regions_container,
             object_id="color_button",
         )
+        # Button for adding polygon
         region_component.new_button = UIButton(
             pygame.Rect(name_width + icons_width, 0, icons_width, 30),
             "+",
@@ -248,6 +277,12 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
             region_component.new_button,
         )
 
+    for region in REGIONS_DICT.values():
+        # Add existing regions
+        _add_region_line(region)
+        # Also set the surface for drawing
+        region.surface = regions_surface
+
     while continue_loop:
 
         time_delta = CLOCK.tick(PYSDGAME_SETTINGS["FPS"]) / 1000.0
@@ -261,10 +296,36 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
             elif event.type == pygame.USEREVENT:
                 if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                     if event.ui_element == new_region_button:
+                        # Add a new region to be drawn
                         _add_region_line()
                     elif event.ui_element == stop_drawing_button:
+                        # Exit the draw mode
                         DRAW_MODE = False
+                        # Change available button settings
                         stop_drawing_button.hide()
+                        validate_regions_button.show()
+                    elif event.ui_element == validate_regions_button:
+                        # Register whether the regions chosen are a valid set
+                        valid_set = validate_regions_dict(REGIONS_DICT)
+                        # Create a new dict to store the regions
+                        if valid_set:
+                            # Register the region
+                            new_REGIONS_DICT = {
+                                region.name: region
+                                for region in REGIONS_DICT.values()
+                            }
+                            # Assign the regions to the MAIN dict
+                            REGIONS_DICT.clear()
+                            for key, item in new_REGIONS_DICT.items():
+                                REGIONS_DICT[key] = item
+                            # finish start_regions_loop
+                            return
+                        else:  # Not valid
+                            # Problems will already be displayed
+                            # by validate_regions_dict()
+                            pass
+                            # TODO could indicate in the UI what to change
+
                     elif (
                         event.ui_object_id == "regions_container.color_button"
                     ):
@@ -293,6 +354,7 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
                             event.ui_element.region_component.polygons[-1]
                         )
                         stop_drawing_button.show()
+                        validate_regions_button.hide()
 
                 elif (
                     event.user_type
@@ -305,8 +367,7 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
                     )
                 elif event.user_type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
                     text_entry: UITextEntryLine = event.ui_element
-                    print("TODO implement that")
-                    print(text_entry.get_text())
+                    text_entry.region_component.name = text_entry.get_text()
 
         if DRAW_MODE:
 
@@ -393,8 +454,9 @@ def start_import_model_loop():
 
     layout.add_row(
         "Model File Path",
-        model_file_name_entry := UITextEntryLine(
+        model_file_name_entry := UILabel(
             pygame.Rect(0, 0, 100, 100),
+            "",
             UI_MANAGER,
             container=layout,
             parent_element=layout,
@@ -411,8 +473,9 @@ def start_import_model_loop():
 
     layout.add_row(
         "Custom Theme File Path",
-        file_name_entry := UITextEntryLine(
+        file_name_entry := UILabel(
             pygame.Rect(0, 0, 100, 100),
+            "",
             UI_MANAGER,
             container=layout,
             parent_element=layout,
@@ -428,8 +491,9 @@ def start_import_model_loop():
     theme_filepath = None
     layout.add_row(
         "Background Image",
-        background_file_name_entry := UITextEntryLine(
+        background_file_name_entry := UILabel(
             pygame.Rect(0, 0, 100, 100),
+            "",
             UI_MANAGER,
             container=layout,
             parent_element=layout,
@@ -489,7 +553,6 @@ def start_import_model_loop():
 
                         root = tk.Tk()
                         root.withdraw()
-                        print(os.environ)
                         model_filepath = pathlib.Path(
                             filedialog.askopenfilename(
                                 filetypes=[
@@ -564,13 +627,32 @@ def start_import_model_loop():
                         if os.path.isfile(background_filepath):
                             # Show the file name selected
                             background_file_name_entry.set_text(
-                                background_filepath.stem
+                                background_filepath.name
                             )
                     elif event.ui_element == define_regions_button:
-                        print("start_regions")
                         start_regions_loop(theme_filepath)
+                        # Change the name of the button, now that the
+                        # regions have been assigned
+                        define_regions_button.set_text("Overwrite")
+                        logger.debug(
+                            "Regions defined: {}".format(REGIONS_DICT)
+                        )
                     elif event.ui_element == launch_import_button:
-                        print("TODO IMPLEMENT HOW I WANT TO PARSE THE MODEL")
+                        try:
+                            game_name = game_name_entry.get_text()
+                            logger.info("[START] Import new game")
+                            import_game(
+                                game_name,
+                                model_filepath,
+                                REGIONS_DICT,
+                            )
+                        except Exception as exception:
+                            # Could not create the new game
+                            # Pop the error message to the user
+                            error_popup(exception)
+                            # Log the exception
+                            logger.info("[FAILED] Import new game")
+                            logger.exception(exception)
 
             UI_MANAGER.process_events(event)
 

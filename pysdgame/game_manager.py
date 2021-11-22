@@ -1,33 +1,53 @@
 """Contain a class that makes the game management."""
 from __future__ import annotations
 import os
+import pathlib
 import sys
 import json
+from functools import cached_property
+from typing import Dict, List, Tuple
 import pygame
 from pygame import display
 import pygame_gui
-import pygame_widgets
 
-from pysdgame.types import DirPath
-
+from .types import DirPath, Polygon, RegionsDict
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .utils import recursive_dict_missing_values
 from .graphs import GraphsManager
-from .regions_display import RegionsSurface
+from .regions_display import RegionComponent, RegionsSurface
 from .model import ModelManager
 
-from .utils.directories import PYSDGAME_DIR
+from .utils.directories import PYSDGAME_DIR, REGIONS_FILE_NAME
 
 
 class Game:
     """Helper class representing a game type from pysd.
 
+    Holds meta information on a game.
     Games all have a model they are based on and a set of settings to
     define how they should be played.
     """
 
     NAME: str
     GAME_DIR: DirPath
+
+    REGIONS_DICT: RegionsDict
+
+    def __main__(self, name: str):
+        self.NAME = name
+        self.GAME_DIR = pathlib.Path(PYSDGAME_DIR, name)
+        self.REGIONS_FILE = pathlib.Path(self.GAME_DIR, REGIONS_FILE_NAME)
+
+    @cached_property
+    def REGIONS_DICT(self) -> RegionsDict:
+        """Load the dictionary of the regions for that game."""
+        with open(self.REGIONS_FILE, "r") as f:
+            dic = json.loads(f)
+
+        return {
+            region_dict["name"]: RegionComponent.from_dict(region_dict)
+            for region_dict in dic.values()
+        }
 
 
 class GameManager:
