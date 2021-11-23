@@ -38,7 +38,7 @@ from pygame_gui.core.interfaces.container_interface import (
 )
 from pygame_gui.core.interfaces.manager_interface import IUIManagerInterface
 from pygame_gui.elements.ui_button import UIButton
-
+from pygame_gui.ui_manager import UIManager
 
 
 UI_TOGGLEBUTTON_TOGGLED = "ui_button_toggled"
@@ -49,6 +49,27 @@ def set_button_color(button: UIButton, color: pygame.Color) -> None:
     button.colours["normal_bg"] = color
     button.colours["hovered_bg"] = color
     button.rebuild()
+
+
+def get_new_close_button(UI_MANAGER: UIManager):
+    rect = pygame.Rect(0, 0, 50, 50)
+    rect.topright = (0, 0)
+    close_button = UIButton(
+        rect,
+        "X",
+        UI_MANAGER,
+        tool_tip_text="Return to Menu",
+        anchors={
+            "left": "right",
+            "right": "right",
+            "top": "top",
+            "bottom": "top",
+        },
+        object_id="#close_button",
+        starting_height=1000,  # Ensure will show on top of the others
+    )
+
+    return close_button
 
 
 class UIToggleButton(UIButton):

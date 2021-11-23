@@ -25,7 +25,7 @@ from pysdgame.utils.directories import (
     find_theme_file,
 )
 from pysdgame.utils.dynamic_menu import UIColumnContainer, UIFormLayout
-from pysdgame.utils.gui_utils import set_button_color
+from pysdgame.utils.gui_utils import get_new_close_button, set_button_color
 from pysdgame.utils.logging import logger
 
 FPS = PYSDGAME_SETTINGS["FPS"]
@@ -42,6 +42,9 @@ UI_MANAGER = UIManager(
 
 REGIONS_DICT: Dict[str, RegionComponent] = {}
 
+# A close button that can be used to return to the previous menu
+CLOSE_BUTTON = get_new_close_button(UI_MANAGER)
+CLOSE_BUTTON.hide()  # Hidden for the main start
 
 # Helpers for buttons positions
 n_buttons = 3  # Number of buttons
@@ -398,6 +401,9 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
 def start_newgame_loop():
     """Start a loop for the new game menu."""
     continue_loop = True
+    CLOSE_BUTTON.show()
+
+    available_games_container = UIColumnContainer()
 
     while continue_loop:
 
@@ -409,7 +415,10 @@ def start_newgame_loop():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.USEREVENT:
-                print(event)
+                if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
+                    if event.ui_element == CLOSE_BUTTON:
+                        CLOSE_BUTTON.hide()
+                        return None
 
             UI_MANAGER.process_events(event)
 
@@ -430,7 +439,7 @@ def start_import_model_loop() -> Union[str, None]:
     """
     continue_loop = True
     UI_MANAGER = UIManager(
-        PYSDGAME_SETTINGS["Resolution"],
+        MAIN_DISPLAY.get_size(),
         theme_path=find_theme_file(PYSDGAME_SETTINGS["Themes"]["Main Menu"]),
     )
 
@@ -532,7 +541,11 @@ def start_import_model_loop() -> Union[str, None]:
             "top": "bottom",
             "bottom": "bottom",
         },
+        object_id="#launch_import_button",
+        starting_height=1000,  # Ensure will show on top of the others
     )
+
+    close_button = get_new_close_button(UI_MANAGER)
 
     while continue_loop:
 
@@ -636,6 +649,8 @@ def start_import_model_loop() -> Union[str, None]:
                         logger.debug(
                             "Regions defined: {}".format(REGIONS_DICT)
                         )
+                    elif event.ui_element == close_button:
+                        return None
                     elif event.ui_element == launch_import_button:
                         try:
                             game_name = game_name_entry.get_text()
@@ -696,7 +711,7 @@ while True:
                 if event.ui_element == load_game_button:
                     print("Hello load_game_button!")
                 if event.ui_element == new_game_button:
-                    print("Hello new_game_button!")
+                    start_newgame_loop()
                 if event.ui_element == import_model_button:
                     start_import_model_loop()
                 for button in buttons:
