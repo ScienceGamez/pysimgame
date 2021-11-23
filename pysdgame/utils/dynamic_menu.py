@@ -2,10 +2,8 @@
 import os
 from typing import Any, Dict, Union
 from enum import IntEnum, auto
-import warnings
 import pygame
 import pygame_gui
-from pygame_gui import elements
 from pygame_gui.core.interfaces.container_interface import (
     IContainerLikeInterface,
 )
@@ -14,7 +12,6 @@ from pygame_gui.core.ui_container import UIContainer
 from pygame_gui.core.ui_element import ObjectID, UIElement
 from pygame_gui.elements import UIDropDownMenu, UITextBox, UIScrollingContainer
 from pygame_gui.elements.ui_button import UIButton
-from pygame_gui.elements.ui_horizontal_scroll_bar import UIHorizontalScrollBar
 from pygame_gui.elements.ui_horizontal_slider import UIHorizontalSlider
 from pygame_gui.elements.ui_label import UILabel
 from pygame_gui.windows import UIFileDialog

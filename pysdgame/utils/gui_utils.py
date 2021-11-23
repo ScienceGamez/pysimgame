@@ -32,31 +32,14 @@ Fired when a user clicks on a Toggle Button.
 """
 from typing import Any, Callable, Dict, List, Union
 import pygame
-import pygame_gui
 from pygame_gui.core import ui_element
-from pygame_gui.core.drawable_shapes.ellipse_drawable_shape import (
-    EllipseDrawableShape,
-)
-from pygame_gui.core.drawable_shapes.rect_drawable_shape import (
-    RectDrawableShape,
-)
-from pygame_gui.core.drawable_shapes.rounded_rect_drawable_shape import (
-    RoundedRectangleShape,
-)
 from pygame_gui.core.interfaces.container_interface import (
     IContainerLikeInterface,
 )
 from pygame_gui.core.interfaces.manager_interface import IUIManagerInterface
 from pygame_gui.elements.ui_button import UIButton
 
-from pygame_gui._constants import (
-    UI_BUTTON_PRESSED,
-    UI_BUTTON_DOUBLE_CLICKED,
-    UI_BUTTON_START_PRESS,
-)
-from pygame_gui._constants import UI_BUTTON_ON_HOVERED, UI_BUTTON_ON_UNHOVERED
 
-from itertools import chain
 
 UI_TOGGLEBUTTON_TOGGLED = "ui_button_toggled"
 

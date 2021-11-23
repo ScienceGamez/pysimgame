@@ -5,12 +5,11 @@ import pathlib
 import sys
 import json
 from functools import cached_property
-from typing import Dict, List, Tuple
 import pygame
 from pygame import display
 import pygame_gui
 
-from .types import DirPath, Polygon, RegionsDict
+from .types import DirPath, RegionsDict
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .utils import recursive_dict_missing_values
 from .graphs import GraphsManager

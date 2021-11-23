@@ -4,37 +4,29 @@ The main menu loop.
 """
 import os
 import pathlib
-import shutil
 import sys
-from typing import Dict, List, Tuple
-import numpy as np
+from typing import Dict, List, Tuple, Union
 
 import pygame
-from pygame import display, time, mouse
-from pygame.constants import BUTTON_LEFT
 import pygame_gui
+from pygame import display, mouse, time
+from pygame_gui.elements import UIButton, UILabel, UITextEntryLine
 from pygame_gui.ui_manager import UIManager
-from pygame_gui.elements import UIButton, UITextEntryLine, UILabel
-from pygame_gui.windows.ui_file_dialog import UIFileDialog
 from pygame_gui.windows import UIColourPickerDialog
 
-from pysdgame import PYSDGAME_SETTINGS, logger
+from pysdgame import PYSDGAME_SETTINGS
 from pysdgame.new_game import error_popup, import_game
-from pysdgame.utils import HINT_DISPLAY, close_points
+from pysdgame.regions_display import (
+    RegionComponent,
+    validate_regions_dict,
+)
 from pysdgame.utils.directories import (
-    DESKTOP_DIR,
-    PYSDGAME_DIR,
     THEMES_DIR,
     find_theme_file,
 )
 from pysdgame.utils.dynamic_menu import UIColumnContainer, UIFormLayout
-from pysdgame.regions_display import (
-    RegionComponent,
-    RegionsSurface,
-    validate_regions_dict,
-)
 from pysdgame.utils.gui_utils import set_button_color
-
+from pysdgame.utils.logging import logger
 
 FPS = PYSDGAME_SETTINGS["FPS"]
 
@@ -323,8 +315,8 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
                         else:  # Not valid
                             # Problems will already be displayed
                             # by validate_regions_dict()
-                            pass
                             # TODO could indicate in the UI what to change
+                            pass
 
                     elif (
                         event.ui_object_id == "regions_container.color_button"
@@ -431,9 +423,16 @@ def start_newgame_loop():
         display.update()
 
 
-def start_import_model_loop():
-    """Game loop for importing new model."""
+def start_import_model_loop() -> Union[str, None]:
+    """Game loop for importing new model.
+
+    :return: The name of the imported game or None if no game was imported
+    """
     continue_loop = True
+    UI_MANAGER = UIManager(
+        PYSDGAME_SETTINGS["Resolution"],
+        theme_path=find_theme_file(PYSDGAME_SETTINGS["Themes"]["Main Menu"]),
+    )
 
     layout = UIFormLayout(MAIN_DISPLAY.get_rect(), UI_MANAGER)
 
@@ -640,7 +639,7 @@ def start_import_model_loop():
                     elif event.ui_element == launch_import_button:
                         try:
                             game_name = game_name_entry.get_text()
-                            logger.info("[START] Import new game")
+                            logger.info("[START] Import new game.")
                             import_game(
                                 game_name,
                                 model_filepath,
@@ -651,8 +650,18 @@ def start_import_model_loop():
                             # Pop the error message to the user
                             error_popup(exception)
                             # Log the exception
-                            logger.info("[FAILED] Import new game")
+                            logger.error("[FAILED] Import new game.")
                             logger.exception(exception)
+                        else:
+                            # Game was created normally
+                            logger.info(
+                                "[SUCCESS] Imported new game: {}.".format(
+                                    game_name
+                                )
+                            )
+                            # Remove the UI Manager of this loop
+                            del UI_MANAGER
+                            return game_name  # Exit the import game loop
 
             UI_MANAGER.process_events(event)
 

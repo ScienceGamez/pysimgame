@@ -181,7 +181,6 @@ def validate_regions_dict(
         else:
             # Valid case
             names.append(region.name)
-            pass
 
     if display and not valid_set:
         HINT_DISPLAY.show("\n".join(hint_msgs))

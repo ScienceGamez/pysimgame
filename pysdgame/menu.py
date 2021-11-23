@@ -10,9 +10,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import pygame
 from pygame.event import Event
-from pygame_gui.core.ui_element import ObjectID
-from pygame_gui.elements.ui_panel import UIPanel
-from pygame_gui.elements.ui_selection_list import UISelectionList
 
 from pysdgame.utils.dynamic_menu import UISettingsMenu
 

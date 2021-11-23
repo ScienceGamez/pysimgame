@@ -9,20 +9,16 @@ Different graphs window can be created:
     - Regions comparison heatmap.
 """
 
-import os
 from typing import List, Tuple, Type
-from matplotlib import interactive
 import numpy as np
 
 import pandas
-from pandas.core import series
 
 from pysdgame.model import ModelManager
 from pysdgame.utils.strings import beautify_parameter_name
 from .utils.maths import normalize
 import pygame
 
-from pygame import draw
 
 from pygame_matplotlib.gui_window import UIPlotWindow
 

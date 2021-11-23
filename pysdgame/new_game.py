@@ -4,17 +4,12 @@ import pathlib
 import shutil
 import logging
 from typing import Any
-from black import path_empty
 
-from numpy import True_
-import pygame
 from pygame import image
 import pysdgame
-from pysdgame import logger
-
-from pysdgame.types import RegionsDict
-from pysdgame.utils.images import resize_image
-from pysdgame.utils.pysdgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
+from .types import RegionsDict
+from .utils.logging import logger
+from .utils.pysdgame_settings import PYSDGAME_SETTINGS
 
 from .utils.directories import (
     BACKGROUND_DIR_NAME,
@@ -23,7 +18,6 @@ from .utils.directories import (
     ORIGINAL_BACKGROUND_FILESTEM,
     PYSDGAME_DIR,
     REGIONS_FILE_NAME,
-    THEME_FILENAME,
 )
 
 
@@ -111,10 +105,11 @@ def import_game(
     # Create the game folder
     game_path = pathlib.Path(PYSDGAME_DIR, game_name)
     game_path.mkdir()
-
     # Need this to remove the folder we just created if anything goes wrong
     try:
         # PySD file used is parsed and created in game_path
+        if model_filepath is None:
+            raise FileNotFoundError("A model file must be given.")
         parse_model_file(model_filepath, game_path)
         logging.info("[OK] Model File")
 
