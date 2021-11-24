@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import pygame
 from pygame.event import Event
+from pysdgame.utils import logging
 
 from pysdgame.utils.dynamic_menu import UISettingsMenu
 
@@ -36,7 +37,11 @@ class MenuOverlayManager(pygame_gui.UIManager):
         self.GAME_MANAGER = game_manager
 
         screen_resolution = game_manager.MAIN_DISPLAY.get_size()
-        print(game_manager.PYGAME_SETTINGS["Themes"]["Menu"])
+        logging.debug(
+            "Theme for Menu: {}".format(
+                game_manager.PYGAME_SETTINGS["Themes"]["Menu"]
+            )
+        )
         super().__init__(
             screen_resolution,
             theme_path=game_manager.PYGAME_SETTINGS["Themes"]["Menu"],
@@ -94,7 +99,7 @@ class MenuOverlayManager(pygame_gui.UIManager):
 
         if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_object_id == "#help_button":
-                print("no help lol")
+                logging.error("no help lol")
                 handled = True
             elif event.ui_object_id == "#open_menu_button":
                 # Will open the menu

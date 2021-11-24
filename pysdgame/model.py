@@ -10,6 +10,8 @@ import pysd
 
 from typing import TYPE_CHECKING
 
+from pysdgame.utils import logging
+
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
 
@@ -56,7 +58,11 @@ class ModelManager:
             region: pysd.load(self.pysd_model_file()) for region in regions
         }
 
-        print(self.models, self.pysd_model_file())
+        logging.info(
+            "Created {} from file {}".format(
+                self.models, self.pysd_model_file()
+            )
+        )
 
         # Initialize each model
         for model in self.models.values():

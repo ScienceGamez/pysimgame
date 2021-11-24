@@ -15,6 +15,7 @@ from .utils import recursive_dict_missing_values
 from .graphs import GraphsManager
 from .regions_display import RegionComponent, RegionsSurface
 from .model import ModelManager
+from .utils.logging import logger
 
 from .utils.directories import PYSDGAME_DIR, REGIONS_FILE_NAME
 
@@ -165,7 +166,11 @@ class GameManager:
         )
 
     def on_region_selected(self):
-        print(self.REGIONS_DISPLAY.selected_region.name)
+        logger.info(
+            "region '{}' selected".format(
+                self.REGIONS_DISPLAY.selected_region.name
+            )
+        )
 
     def set_graph_display(self):
         self.GRAPHS_MANAGER = GraphsManager(

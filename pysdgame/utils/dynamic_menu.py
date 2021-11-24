@@ -16,6 +16,8 @@ from pygame_gui.elements.ui_horizontal_slider import UIHorizontalSlider
 from pygame_gui.elements.ui_label import UILabel
 from pygame_gui.windows import UIFileDialog
 
+from pysdgame.utils import logging
+
 
 class UIColumnContainer(UIScrollingContainer):
     """A vertical layout where you can add elements.
@@ -85,7 +87,6 @@ class UIColumnContainer(UIScrollingContainer):
                 self._max_width,
                 element_rect.width + element.get_relative_rect().left,
             )
-            print(self._max_width)
             max_height = max(max_height, element_rect.height)
 
         # Update for the next element
@@ -357,7 +358,7 @@ class UISettingsMenu(UIContainer):
                 try:
                     self.add_setting(key, value)
                 except NotImplementedError as err:
-                    print(err)
+                    logging.exception(err)
             # Allow for pointing to original settings
             self._settings_json = settings
 
@@ -519,7 +520,7 @@ class UISettingsMenu(UIContainer):
 
     def change_setting(self, key: str, value: Any):
         self._settings_json[key] = value
-        print(self.get_settings())
+        logging.info(self.get_settings())
 
     def get_settings(self) -> Dict[str, Any]:
         return self._settings_json

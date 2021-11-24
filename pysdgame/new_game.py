@@ -3,7 +3,7 @@ import json
 import pathlib
 import shutil
 import logging
-from typing import Any
+from typing import Any, List
 
 from pygame import image
 import pysdgame
@@ -25,13 +25,21 @@ def error_popup(msg: str):
     return
 
 
-def check_game_name(name: str) -> None:
-    # Check that it already exist
+def get_available_games() -> List[str]:
+    """Return a list of the games available for the user."""
     dir = pathlib.Path(PYSDGAME_DIR)
-    if name == "":
-        raise ValueError("Game name cannot be empty.")
     existing_games = [d.name for d in dir.iterdir()]
     logger.debug("Found games : {}".format(existing_games))
+    return existing_games
+
+
+def check_game_name(name: str) -> None:
+    # Check that it already exist
+
+    if name == "":
+        raise ValueError("Game name cannot be empty.")
+    existing_games = get_available_games()
+
     if name in existing_games:
         raise ValueError("Name '{}' is already taken.".format(name))
 

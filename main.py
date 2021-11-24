@@ -15,7 +15,7 @@ from pygame_gui.ui_manager import UIManager
 from pygame_gui.windows import UIColourPickerDialog
 
 from pysdgame import PYSDGAME_SETTINGS
-from pysdgame.new_game import error_popup, import_game
+from pysdgame.new_game import error_popup, get_available_games, import_game
 from pysdgame.regions_display import (
     RegionComponent,
     validate_regions_dict,
@@ -105,7 +105,7 @@ def start_template_loop():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.USEREVENT:
-                print(event)
+                logger.debug(event)
 
             UI_MANAGER.process_events(event)
 
@@ -398,12 +398,38 @@ def start_regions_loop(background_image_filepath: pathlib.Path = None):
         display.update()
 
 
-def start_newgame_loop():
-    """Start a loop for the new game menu."""
+def start_newgame_loop() -> None:
+    """Start a loop for the new game menu.
+
+    Will never return if a new game starts, unless the player chooses to
+    return to main menu.
+    """
     continue_loop = True
     CLOSE_BUTTON.show()
 
-    available_games_container = UIColumnContainer()
+    available_games_container = UIColumnContainer(
+        pygame.Rect(x_size / 3, y_size / 3, x_size / 3, y_size / 2),
+        UI_MANAGER,
+        object_id="#games_container",
+    )
+    for game in get_available_games():
+        available_games_container.add_row(
+            button := UIButton(
+                pygame.Rect(0, 0, x_size / 4, 50),
+                game,
+                UI_MANAGER,
+                container=available_games_container,
+                object_id="gamename_button",
+            )
+        )
+        button.game = game
+
+    start_button = UIButton(
+        pygame.Rect(x_size / 3, y_size / 3, x_size / 3, y_size / 5),
+        "START",
+        UI_MANAGER,
+    )
+    start_button.hide()
 
     while continue_loop:
 
@@ -418,7 +444,23 @@ def start_newgame_loop():
                 if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                     if event.ui_element == CLOSE_BUTTON:
                         CLOSE_BUTTON.hide()
+                        available_games_container.hide()
+                        del available_games_container
                         return None
+                    if event.ui_element == start_button:
+                        CLOSE_BUTTON.hide()
+                        start_button.hide()
+                        del start_button
+                        return None
+                    if (
+                        event.ui_object_id
+                        == "#games_container.gamename_button"
+                    ):
+                        _selected_game = event.ui_element.game
+                        available_games_container.hide()
+                        start_button.show()
+                    else:
+                        logger.info("Pressed {}".format(event))
 
             UI_MANAGER.process_events(event)
 
@@ -709,7 +751,7 @@ while True:
                 for button in buttons:
                     button.hide()
                 if event.ui_element == load_game_button:
-                    print("Hello load_game_button!")
+                    logger.info("Hello load_game_button!")
                 if event.ui_element == new_game_button:
                     start_newgame_loop()
                 if event.ui_element == import_model_button:
