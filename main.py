@@ -15,11 +15,13 @@ from pygame_gui.ui_manager import UIManager
 from pygame_gui.windows import UIColourPickerDialog
 
 from pysdgame import PYSDGAME_SETTINGS
+from pysdgame.game_manager import GameManager
 from pysdgame.new_game import error_popup, get_available_games, import_game
 from pysdgame.regions_display import (
     RegionComponent,
     validate_regions_dict,
 )
+from pysdgame.utils import logging
 from pysdgame.utils.directories import (
     THEMES_DIR,
     find_theme_file,
@@ -448,10 +450,13 @@ def start_newgame_loop() -> None:
                         del available_games_container
                         return None
                     if event.ui_element == start_button:
+                        # Start the game
                         CLOSE_BUTTON.hide()
                         start_button.hide()
                         del start_button
-                        return None
+                        GameManager.start_new_game(_selected_game)
+                        logging.debug("game finished, returning to menu")
+                        return
                     if (
                         event.ui_object_id
                         == "#games_container.gamename_button"

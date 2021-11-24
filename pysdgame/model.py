@@ -6,7 +6,7 @@ import shutil
 from typing import Dict, List
 import numpy as np
 import pandas as pd
-import pysd
+
 
 from typing import TYPE_CHECKING
 
@@ -52,8 +52,11 @@ class ModelManager:
                 :py:meth:`get_current_data`. If None, will return all
                 what is available.
         """
+        # Import pysd here only, because it takes much time to import it
+        import pysd
+
         self.game_manager = game_manager
-        regions = game_manager.PYGAME_SETTINGS["Region Names"]
+        regions = game_manager.game.REGIONS_DICT.keys()
         self.models = {
             region: pysd.load(self.pysd_model_file()) for region in regions
         }
@@ -195,8 +198,9 @@ class ModelManager:
 
     def pysd_model_file(self) -> str:
         """Load the file name of the pysd simulation."""
-        model_filepath = self.game_manager.PYGAME_SETTINGS["PySD model file"]
+        model_filepath = self.game_manager.game.PYSD_MODEL_FILE
         if model_filepath is None:
+            # TODO : decide if we keep that
             model_filepath = self.read_filepath()
         # Where pysdgame will store the model
         pysdgame_model_filepath = os.path.join(
