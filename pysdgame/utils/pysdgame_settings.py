@@ -8,6 +8,7 @@ import shutil
 
 import pysdgame
 from pysdgame.utils import recursive_dict_missing_values
+from pysdgame.utils.logging import logger
 
 from .directories import (
     DEFAULT_THEMES_DIR,
@@ -30,6 +31,8 @@ DEFAULT_SETTINGS_FILE = os.path.join(
     *pysdgame.__path__, "utils", "pysdgame_settings.json"
 )
 
+logger.debug(f"PYSDGAME SETTING FILE: {DEFAULT_SETTINGS_FILE}")
+
 
 if not os.path.isfile(SETTINGS_FILE):
     # Copy the file to the new location if it does not exist
@@ -39,6 +42,9 @@ if not os.path.isfile(SETTINGS_FILE):
 # Settings file should exists now
 with open(SETTINGS_FILE) as f:
     PYSDGAME_SETTINGS = json.load(f)
+
+
+logger.debug(f"PYSDGAME SETTING : {PYSDGAME_SETTINGS}")
 
 
 def save_pysdgame_settings():
