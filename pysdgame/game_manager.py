@@ -16,7 +16,7 @@ import pygame_gui
 from pygame_gui.ui_manager import UIManager
 
 from .utils.pysdgame_settings import PYSDGAME_SETTINGS
-from .types import DirPath, RegionsDict
+from .types import RegionsDict
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .utils import recursive_dict_missing_values
 from .graphs import GraphsManager

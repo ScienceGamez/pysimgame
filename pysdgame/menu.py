@@ -10,7 +10,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import pygame
 from pygame.event import Event
-from pysdgame.utils import logging
+
+from pysdgame import PYSDGAME_SETTINGS
+from pysdgame.utils.logging import logger
 
 from pysdgame.utils.dynamic_menu import UISettingsMenu
 
@@ -36,15 +38,13 @@ class MenuOverlayManager(pygame_gui.UIManager):
         """
         self.GAME_MANAGER = game_manager
 
-        screen_resolution = game_manager.MAIN_DISPLAY.get_size()
-        logging.debug(
-            "Theme for Menu: {}".format(
-                game_manager.PYGAME_SETTINGS["Themes"]["Menu"]
-            )
+        screen_resolution = game_manager.rendrered_surface.get_size()
+        logger.debug(
+            "Theme for Menu: {}".format(PYSDGAME_SETTINGS["Themes"]["Menu"])
         )
         super().__init__(
             screen_resolution,
-            theme_path=game_manager.PYGAME_SETTINGS["Themes"]["Menu"],
+            theme_path=PYSDGAME_SETTINGS["Themes"]["Menu"],
         )
         self.buttons_size = relative_height * screen_resolution[1]
 
@@ -99,7 +99,7 @@ class MenuOverlayManager(pygame_gui.UIManager):
 
         if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_object_id == "#help_button":
-                logging.error("no help lol")
+                logger.error("no help lol")
                 handled = True
             elif event.ui_object_id == "#open_menu_button":
                 # Will open the menu
@@ -117,10 +117,10 @@ class SettingsMenuManager(pygame_gui.UIManager):
 
     def __init__(self, game_manager: GameManager):
         self.GAME_MANAGER = game_manager
-        display_size = game_manager.MAIN_DISPLAY.get_size()
+        display_size = game_manager.rendrered_surface.get_size()
         super().__init__(
             display_size,
-            theme_path=game_manager.PYGAME_SETTINGS["Themes"]["Settings"],
+            theme_path=PYSDGAME_SETTINGS["Themes"]["Settings"],
         )
 
         def start_game_loop_decorator(func):
@@ -131,9 +131,9 @@ class SettingsMenuManager(pygame_gui.UIManager):
             return decorated_func
 
         self.menu = UISettingsMenu(
-            game_manager.MAIN_DISPLAY.get_rect(),
+            game_manager.rendrered_surface.get_rect(),
             self,
-            game_manager.PYGAME_SETTINGS,
+            PYSDGAME_SETTINGS,
         )
 
         # When the menu is killed, go back to game

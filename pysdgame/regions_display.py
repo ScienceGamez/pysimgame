@@ -344,6 +344,7 @@ class RegionsSurface(pygame.Surface):
         # Add the background on screen
         self.background_image = pygame.image.load(img_path)
         self.blit(self.background_image, (0, 0))
+        logger.info(f"Loaded background {self.background_image}")
 
     def load_regions(self):
         """Load the regions polygons.

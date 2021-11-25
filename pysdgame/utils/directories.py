@@ -3,7 +3,6 @@ import os
 import pathlib
 import pysdgame
 
-from pysdgame.types import FilePath
 
 # TODO: check for linux and macos
 _app_data_dir = os.environ["APPDATA"]
@@ -34,7 +33,7 @@ if not os.path.isdir(THEMES_DIR):
     os.mkdir(THEMES_DIR)
 
 
-def find_theme_file(theme_filename: FilePath) -> FilePath:
+def find_theme_file(theme_filename: pathlib.Path) -> pathlib.Path:
     """Find the real address of a theme file from the given one.
 
     First check if the user has the file in his themes.

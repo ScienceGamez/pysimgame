@@ -15,7 +15,7 @@ import numpy as np
 import pandas
 
 from pysdgame.model import ModelManager
-from pysdgame.utils import logging
+from pysdgame.utils.logging import logger
 from pysdgame.utils.strings import beautify_parameter_name
 from .utils.maths import normalize
 import pygame
@@ -51,7 +51,7 @@ class GraphsManager:
         """
 
         self.previous_serie = None
-        logging.debug(region_colors_dict)
+        logger.debug(region_colors_dict)
         self.region_colors = region_colors_dict
         self.ui_manager = ui_manager
 
