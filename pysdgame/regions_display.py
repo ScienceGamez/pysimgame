@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Dict, List
 import warnings
 import pygame
@@ -11,6 +12,11 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 from pysdgame.utils import HINT_DISPLAY
+from pysdgame.utils.directories import (
+    BACKGROUND_DIR_NAME,
+    ORIGINAL_BACKGROUND_FILESTEM,
+)
+from .utils.logging import logger
 
 if TYPE_CHECKING:
     from .game_manager import GameManager
@@ -221,12 +227,11 @@ class IlluminatisHQ(RegionComponent):
         return False
 
 
-class SingleRegion:
+class SingleRegionComponent(RegionComponent):
     """Represent a region when there is only one region in the game."""
 
-    def __init__(self, color=np.array([0, 0, 255])) -> None:
-        """Create a region for a single model."""
-        self.color = color
+    def __init__(self):
+        super().__init__(None, color=pygame.Color(255, 255, 255), name="")
 
 
 class RegionsSurface(pygame.Surface):
@@ -244,20 +249,20 @@ class RegionsSurface(pygame.Surface):
         game_manager: GameManager,
         *args,
         on_region_selected=lambda: None,
-        **kwargs
+        **kwargs,
     ) -> None:
-        """Initialize the earth.
+        """Initialize the regions surface.
 
         Same args as pygame.Surface().
         """
         super().__init__(
-            game_manager.PYGAME_SETTINGS["Resolution"], *args, **kwargs
+            game_manager.rendrered_surface.get_size(), *args, **kwargs
         )
         self.game_manager = game_manager
 
         self.load_background_image()
 
-        if not game_manager.PYGAME_SETTINGS["Single Region"]:
+        if len(game_manager.game.REGIONS_DICT) > 1:
             # Set up the manager for multiple regions
             self.load_regions()
             self.on_region_selected = on_region_selected
@@ -265,7 +270,6 @@ class RegionsSurface(pygame.Surface):
             self._selected_region_str = None
         else:
             # Only one region
-            self.region_components["Single Region"] = SingleRegion()
 
             def do_nothing(*args):
                 # Return False to avoid updating in the listen function
@@ -307,43 +311,39 @@ class RegionsSurface(pygame.Surface):
         the images to have the requested resolution.
         If no image is given, this will continue.
         """
-        backgrounds_dir = os.path.join(
-            self.game_manager.GAME_DIR,
-            "backgrounds",
+        backgrounds_dir = Path(
+            self.game_manager.game.GAME_DIR, BACKGROUND_DIR_NAME
         )
-        if not os.path.isdir(backgrounds_dir):
-            os.mkdir(backgrounds_dir)
 
         # The background image takes the full space of the game
-        size = self.game_manager.PYGAME_SETTINGS["Resolution"]
+        size = self.game_manager.rendrered_surface.get_size()
 
-        image_file = "background_{}x{}.jpg".format(size[0], size[1])
-        img_path = os.path.join(
-            self.game_manager.GAME_DIR, "backgrounds", image_file
-        )
-        original_img_path = os.path.join(
-            self.game_manager.GAME_DIR, "backgrounds", "background.jpg"
-        )
-        if not os.path.isfile(img_path):
-            if os.path.isfile(original_img_path):
+        image_file = "{}x{}.tga".format(*size)
+        img_path = Path(backgrounds_dir, image_file)
+        original_img_path = Path(
+            backgrounds_dir, ORIGINAL_BACKGROUND_FILESTEM
+        ).with_suffix(".tga")
+        if not img_path.exists():
+            if original_img_path.exists():
                 # Convert the image to this format if not yet
-                print("Resizing {} to {}.".format(original_img_path, size))
+                logger.info(
+                    "Resizing {} to {}.".format(original_img_path, size)
+                )
                 from .utils.images import resize_image
 
-                resize_image(original_img_path, *size)
+                resize_image(original_img_path, img_path, size)
             else:
-                warnings.warn(
+                logger.debug(
                     (
                         "No default background set. \n"
                         "Place a file at {}".format(original_img_path)
                     )
                 )
-                self.HAS_NO_BACKGROUND
                 # As no background image file was given
                 return
-
-        self.earth_map_img = pygame.image.load(img_path)
-        self.blit(self.earth_map_img, (0, 0))
+        # Add the background on screen
+        self.background_image = pygame.image.load(img_path)
+        self.blit(self.background_image, (0, 0))
 
     def load_regions(self):
         """Load the regions polygons.

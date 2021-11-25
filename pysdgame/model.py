@@ -1,16 +1,17 @@
 """The model that runs with the game."""
 from __future__ import annotations
+from functools import cached_property
 import os
 import shutil
 
-from typing import Dict, List
+from typing import Dict, Iterable, List
 import numpy as np
 import pandas as pd
 
 
 from typing import TYPE_CHECKING
 
-from pysdgame.utils import logging
+from .utils.logging import logger
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
@@ -41,8 +42,6 @@ class ModelManager:
         self,
         game_manager: GameManager,
         capture_elements: List[str] = None,
-        final_time: float = 2600,
-        d_T: float = 0.5,
     ) -> None:
         """Create a model manager.
 
@@ -58,12 +57,13 @@ class ModelManager:
         self.game_manager = game_manager
         regions = game_manager.game.REGIONS_DICT.keys()
         self.models = {
-            region: pysd.load(self.pysd_model_file()) for region in regions
+            region: pysd.load(game_manager.game.PYSD_MODEL_FILE)
+            for region in regions
         }
 
-        logging.info(
+        logger.info(
             "Created {} from file {}".format(
-                self.models, self.pysd_model_file()
+                self.models, game_manager.game.PYSD_MODEL_FILE
             )
         )
 
@@ -75,45 +75,66 @@ class ModelManager:
             # Set the model in run phase
             model.time.stage = "Run"
             # cleans the cache of the components
-            model.components.cache.clean()
+            logger.debug(f"Model components {model.components}.")
+            model.cache.clean()
 
         self.time = model.time
 
         # Create the axis of timesteps
+        logger.debug(f"initial_time {model.components.initial_time()}.")
+        logger.debug(f"time_step {model.components.time_step()}.")
+        logger.debug(f"final_time {model.components.final_time()}.")
         self.time_axis = np.arange(
-            model.time(), final_time, step=d_T, dtype=float
+            model.time(),
+            model.components.final_time() + model.components.time_step(),
+            step=model.components.time_step(),
+            dtype=float,
         )
+        logger.debug(f"Built time array: {self.time_axis}.")
         self.t_serie = iter(self.time_axis)
         self.current_time = model.time()
         self.current_step = int(0)
 
-        # Check which elements should be captured
-        if capture_elements is None:
-            # None captures all elements that are part of the model
-            capture_elements = self.get_elements_names()
-        print("capture_elements", capture_elements)
+        self.capture_elements = capture_elements
 
         # Create a df to store the output
         index = pd.MultiIndex.from_product(
-            [regions, capture_elements],
+            [regions, self.capture_elements],
             names=["regions", "elements"],
         )
+        logger.debug(f"Created Index {index}")
         self.outputs = pd.DataFrame(columns=index)
         # Sort the indexes for performance
         self.outputs.sort_index()
 
-        self.capture_elements = capture_elements
         # Saves the starting state
         self._save_current_elements()
 
-    def get_elements_names(self) -> List[str]:
-        """Return the names of the elements simulated in the model."""
+    @cached_property
+    def elements_names(self) -> List[str]:
+        """Return the names of the elements simulated in the model.
+
+        Removes some elements that are not interesting for the model
+        (time step, start, finish)
+        """
         if self._elements_names is None:
             # Reads the first models components
             self._elements_names = list(
                 list(self.models.values())[0].components._namespace.values()
             )
-        return self._elements_names.copy()
+            logger.debug(
+                f"All the model.components elements: {self._elements_names}"
+            )
+        elements_names = self._elements_names.copy()
+        for val in [
+            "time",
+            "final_time",
+            "saveper",
+            "initial_time",
+            "time_step",
+        ]:
+            elements_names.remove(val)
+        return elements_names
 
     def __getitem__(self, key):
         return self.models[key]
@@ -146,6 +167,19 @@ class ModelManager:
             for region, model in self.models.items()
         }
 
+    @property
+    def capture_elements(self):
+        return self._capture_elements
+
+    @capture_elements.setter
+    def capture_elements(self, elements: List[str]):
+        # Check which elements should be captured
+        if elements is None:
+            # None captures all elements that are part of the model
+            elements = self.elements_names
+        self._capture_elements = elements
+        logger.info(f"Set captured elements: {elements}")
+
     def apply_policies(self, policies: POLICY_DICT):
         """Apply the requested policies to all the requested regions."""
         for region, policies in policies.items():
@@ -175,58 +209,14 @@ class ModelManager:
             print("Try again.")
             return self.read_filepath()
 
-    def parse_model_file(self, filepath: str) -> str:
-        """Parse the model file and return the new py filepath."""
-        if filepath.endswith(".mdl"):
-            # Vensim model
-            pysd.read_vensim(filepath, initialize=False)
-        elif filepath.endswith(".xmile"):
-            # Xmile model
-            pysd.read_xmile(filepath, initialize=False)
-        elif filepath.endswith(".py"):
-            # Python model
-            pass
-        else:
-            raise ValueError(
-                (
-                    'Impossible to parse "{}".'
-                    "Model not known. Only accepts .mdl, .py or .xmile files."
-                ).format(os.path.basename(filepath))
-            )
-
-        return "".join(filepath.split(".")[:-1] + [".py"])
-
-    def pysd_model_file(self) -> str:
-        """Load the file name of the pysd simulation."""
-        model_filepath = self.game_manager.game.PYSD_MODEL_FILE
-        if model_filepath is None:
-            # TODO : decide if we keep that
-            model_filepath = self.read_filepath()
-        # Where pysdgame will store the model
-        pysdgame_model_filepath = os.path.join(
-            self.game_manager.GAME_DIR, os.path.basename(model_filepath)
-        )
-        if model_filepath != pysdgame_model_filepath:
-            shutil.copyfile(  # Copy to the new location
-                model_filepath, pysdgame_model_filepath
-            )
-
-        # Convert the model if necessary
-        parsed_filepath = self.parse_model_file(pysdgame_model_filepath)
-
-        # now save it in the settings, so it is parsed for next time
-        self.game_manager.PYGAME_SETTINGS["PySD model file"] = parsed_filepath
-        self.game_manager.save_settings()
-
-        return parsed_filepath
-
     def _save_current_elements(self):
-        print(self.outputs)
+        logger.debug(f"[STARTED]_save_current_elements : {self.outputs}")
         for region, model in self.models.items():
             self.outputs.at[model.time(), region] = [
                 getattr(model.components, key)()
                 for key in self.capture_elements
             ]
+        logger.debug(f"[FINISHED]_save_current_elements : {self.outputs}")
 
     def step(self):
         """Step of the global model.

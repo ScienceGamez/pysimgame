@@ -11,19 +11,24 @@ from functools import cached_property
 from typing import Any, Dict, Tuple
 import pygame
 import pygame.display
+import pygame.font
 import pygame_gui
-
+from pygame_gui.ui_manager import UIManager
 
 from .utils.pysdgame_settings import PYSDGAME_SETTINGS
 from .types import DirPath, RegionsDict
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .utils import recursive_dict_missing_values
 from .graphs import GraphsManager
-from .regions_display import RegionComponent, RegionsSurface
+from .regions_display import (
+    RegionComponent,
+    RegionsSurface,
+    SingleRegionComponent,
+)
 from .model import ModelManager
 from .utils.logging import logger
 
-from .utils.directories import PYSDGAME_DIR, REGIONS_FILE_NAME
+from .utils.directories import MODEL_FILENAME, PYSDGAME_DIR, REGIONS_FILE_NAME
 
 
 class Game:
@@ -50,7 +55,7 @@ class Game:
             case False, False:  # Reading a non existing game
                 raise RuntimeError(f"Game '{name}' cannot be found.")
         self.REGIONS_FILE = pathlib.Path(self.GAME_DIR, REGIONS_FILE_NAME)
-        self.PYSD_MODEL_FILE = pathlib.Path(self.GAME_DIR, REGIONS_FILE_NAME)
+        self.PYSD_MODEL_FILE = pathlib.Path(self.GAME_DIR, MODEL_FILENAME)
 
     @cached_property
     def REGIONS_DICT(self) -> RegionsDict:
@@ -60,10 +65,15 @@ class Game:
         logger.info("Region file loaded.")
         logger.debug(f"Region file content: {dic}.")
 
-        return {
-            region_dict["name"]: RegionComponent.from_dict(region_dict)
-            for region_dict in dic.values()
-        }
+        return (
+            {  # Load regions from what is in the file
+                region_dict["name"]: RegionComponent.from_dict(region_dict)
+                for region_dict in dic.values()
+            }
+            if len(dic) != 0
+            # Load a single region if they are not in the file
+            else {"": SingleRegionComponent()}
+        )
 
 
 class GameManager:
@@ -71,16 +81,63 @@ class GameManager:
     GAME_SETTINGS: Dict[str, Any]
     _model_fps: float = 1
     model_manager: ModelManager = None
+    _is_loading: bool = False
+    _loading_screen_thread: threading.Thread
+    UI_MANAGER: UIManager
+
+    rendrered_surface: pygame.Surface = None
 
     def _load_game_content(self):
         logger.debug(f"[START] Loading {self.game.NAME}.")
-        time.sleep(5)
+        time.sleep(15)
         logger.debug(f"[FINISHED] Loading {self.game.NAME}.")
 
     def _create_display(self):
         logger.debug("[START] Setting the display.")
-        time.sleep(10)
+        if self.rendrered_surface is None:
+            # Create a new pygame window if we don't know where to render
+            self.rendrered_surface = pygame.display.set_mode((600, 200))
+
+        self._loading_screen_thread = threading.Thread(
+            target=self._loading_loop
+        )
+        self._loading_screen_thread.start()
+
+        # Set up a pygame_gui manager
+        # TODO: add the theme path
+        self.UI_MANAGER = UIManager(self.rendrered_surface.get_size())
+
+        self._prepare_regions_display()
+        self._prepare_graph_display()
+        self._prepare_menu_displays()
+
+        self._loading_screen_thread.join()
         logger.debug("[FINISHED] Setting the display.")
+
+    def _prepare_regions_display(self):
+        self.REGIONS_DISPLAY = RegionsSurface(
+            self,
+        )
+
+    def _prepare_menu_displays(self):
+        """Set up the menu displayer of the game.
+
+        Menu buttons are set at the top right.
+        """
+        self.MENU_OVERLAY = MenuOverlayManager(
+            self,
+        )
+
+    def _prepare_graph_display(self):
+        self.GRAPHS_MANAGER = GraphsManager(
+            {
+                name: cmpnt.color
+                for name, cmpnt in self.game.REGIONS_DICT.items()
+                if name is not None
+            },
+            self.UI_MANAGER,
+        )
+        # self.GRAPHS_MANAGER.add_graph()
 
     @property
     def model_fps(self):
@@ -110,15 +167,37 @@ class GameManager:
 
     def _prepare_components(self):
         # Regions have to be loaded first as they are used by the othres
-        processes = []
-        for f in self._load_game_content, self._create_display:
-            p = threading.Thread(target=f)
-            p.start()
-            processes.append(p)
-        for p in processes:
-            p.join()
+        logger.info("[START] Prepare to start new game.")
+        self._is_loading = True
+        start_time = time.time()
+
+        p0 = threading.Thread(
+            target=self._start_model, name="Starting Model Manager"
+        )
+        p0.start()
+        p1 = threading.Thread(
+            target=self._load_game_content, name="Game Content Loading"
+        )
+        p1.start()
+        p2 = threading.Thread(
+            target=self._create_display, name="Creating Display"
+        )
+        p2.start()
+
+        # Wait each thread to finish
+        p0.join()
+        p1.join()
         # Components are ready, we can connect them
         # self.GRAPHS_MANAGER.connect_to_model(self.model)
+
+        # Loading is finished
+        logger.debug(f"SETTING _is_loading {self._is_loading}")
+        self._is_loading = False
+        p2.join()
+        logger.info(
+            "[FINISHED] Prepare to start new game. "
+            "Loading Time: {} sec.".format(time.time() - start_time)
+        )
 
     @property
     def game(self):
@@ -134,15 +213,50 @@ class GameManager:
         logger.info(f"New game set: '{self._game.NAME}'.")
 
     def start_new_game(self, game: Tuple[Game, str]):
-        """Start a new game"""
+        """Start a new game."""
+        pygame.init()
         self.game = game
-        logger.debug("[START] Prepare to start new game.")
-        start = time.time()
-        threading.Thread(target=self._start_model).start()
+
         self._prepare_components()
-        logger.debug("[FINISHED] Prepare to start new game.")
-        print(time.time() - start)
+
         logger.info("---Game Ready---")
+
+    def _loading_loop(self):
+        logger.debug(f"[STARTED] Loading loop.")
+        CLOCK = pygame.time.Clock()
+        font = pygame.font.Font("freesansbold.ttf", 32)
+        font_surfaces = [
+            font.render("Loading .", True, "white"),
+            font.render("Loading ..", True, "white"),
+            font.render("Loading ...", True, "white"),
+        ]
+
+        # Calculate where the loading font should go
+        x, y = self.rendrered_surface.get_size()
+        font_position = ((x - font_surfaces[-1].get_size()[1]) / 2, y / 2)
+
+        logger.debug(f"Before loop _is_loading {self._is_loading}")
+        counter = 0
+        while self._is_loading:
+            events = pygame.event.get()
+            # Look for quit events
+            for event in events:
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.USEREVENT:
+                    logger.debug(event)
+
+            CLOCK.tick(1)
+            self.rendrered_surface.fill("black")
+            self.rendrered_surface.blit(
+                font_surfaces[counter % 3], font_position
+            )
+
+            pygame.display.update()
+            counter += 1
+
+        logger.debug(f"[FINISHED] Loading loop.")
 
 
 class OldGameManager:

@@ -21,6 +21,7 @@ DESKTOP_DIR = os.path.join(os.path.join(os.environ["USERPROFILE"]), "Desktop")
 REGIONS_FILE_NAME = "regions.json"
 THEME_FILENAME = "theme.json"
 MODEL_FILESTEM = "model"
+MODEL_FILENAME = MODEL_FILESTEM + ".py"
 BACKGROUND_DIR_NAME = "backgrounds"
 ORIGINAL_BACKGROUND_FILESTEM = "orginal"
 GAME_SETTINGS_FILENAME = "settings.json"
