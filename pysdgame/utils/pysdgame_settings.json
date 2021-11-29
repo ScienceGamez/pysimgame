@@ -1,10 +1,14 @@
 {
     "__version__": 0,
     "FPS": 144,
-    "Resolution": [1080, 720],
+    "Resolution": [
+        1080,
+        720
+    ],
     "Themes": {
         "Main Menu": "main_menu.json",
-        "Settings": "settings_menu.json"
+        "Settings": "settings_menu.json",
+        "Game Menu": "game_menu.json"
     },
     "Display Proportions": {
         "GraphsControl width": 0.3,

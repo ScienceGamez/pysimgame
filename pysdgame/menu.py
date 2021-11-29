@@ -5,6 +5,7 @@ The menu which is openable from that MenuOverlayMangaer is handled by
 SettingsMenuManager.
 """
 from __future__ import annotations
+from pathlib import Path
 
 
 from typing import TYPE_CHECKING
@@ -12,6 +13,7 @@ import pygame
 from pygame.event import Event
 
 from pysdgame import PYSDGAME_SETTINGS
+from pysdgame.utils.directories import THEMES_DIR
 from pysdgame.utils.logging import logger
 
 from pysdgame.utils.dynamic_menu import UISettingsMenu
@@ -38,13 +40,14 @@ class MenuOverlayManager(pygame_gui.UIManager):
         """
         self.GAME_MANAGER = game_manager
 
-        screen_resolution = game_manager.rendrered_surface.get_size()
-        logger.debug(
-            "Theme for Menu: {}".format(PYSDGAME_SETTINGS["Themes"]["Menu"])
+        screen_resolution = game_manager.MAIN_DISPLAY.get_size()
+        game_menu_theme_path = Path(
+            THEMES_DIR, PYSDGAME_SETTINGS["Themes"]["Game Menu"]
         )
+        logger.debug(f"Theme for Menu: {game_menu_theme_path}")
         super().__init__(
             screen_resolution,
-            theme_path=PYSDGAME_SETTINGS["Themes"]["Menu"],
+            theme_path=game_menu_theme_path,
         )
         self.buttons_size = relative_height * screen_resolution[1]
 
@@ -117,7 +120,7 @@ class SettingsMenuManager(pygame_gui.UIManager):
 
     def __init__(self, game_manager: GameManager):
         self.GAME_MANAGER = game_manager
-        display_size = game_manager.rendrered_surface.get_size()
+        display_size = game_manager.MAIN_DISPLAY.get_size()
         super().__init__(
             display_size,
             theme_path=PYSDGAME_SETTINGS["Themes"]["Settings"],
@@ -131,7 +134,7 @@ class SettingsMenuManager(pygame_gui.UIManager):
             return decorated_func
 
         self.menu = UISettingsMenu(
-            game_manager.rendrered_surface.get_rect(),
+            game_manager.MAIN_DISPLAY.get_rect(),
             self,
             PYSDGAME_SETTINGS,
         )

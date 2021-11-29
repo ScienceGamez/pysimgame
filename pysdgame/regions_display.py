@@ -248,16 +248,13 @@ class RegionsSurface(pygame.Surface):
         self,
         game_manager: GameManager,
         *args,
-        on_region_selected=lambda: None,
         **kwargs,
     ) -> None:
         """Initialize the regions surface.
 
         Same args as pygame.Surface().
         """
-        super().__init__(
-            game_manager.rendrered_surface.get_size(), *args, **kwargs
-        )
+        super().__init__(game_manager.MAIN_DISPLAY.get_size(), *args, **kwargs)
         self.game_manager = game_manager
 
         self.load_background_image()
@@ -265,7 +262,7 @@ class RegionsSurface(pygame.Surface):
         if len(game_manager.game.REGIONS_DICT) > 1:
             # Set up the manager for multiple regions
             self.load_regions()
-            self.on_region_selected = on_region_selected
+
             self._previous_pressed = False
             self._selected_region_str = None
         else:
@@ -304,6 +301,13 @@ class RegionsSurface(pygame.Surface):
                 )
             )
 
+    def on_region_selected(self, region: RegionComponent) -> None:
+        """Called when a region is selected.
+
+        Can be overriden to do any thing particular.
+        """
+        pass
+
     def load_background_image(self):
         """Load the background image if it exists.
 
@@ -316,7 +320,7 @@ class RegionsSurface(pygame.Surface):
         )
 
         # The background image takes the full space of the game
-        size = self.game_manager.rendrered_surface.get_size()
+        size = self.game_manager.MAIN_DISPLAY.get_size()
 
         image_file = "{}x{}.tga".format(*size)
         img_path = Path(backgrounds_dir, image_file)
@@ -385,7 +389,7 @@ class RegionsSurface(pygame.Surface):
         )
         self.blit(self.region_surface, (0, 0))
 
-    def listen(self, events):
+    def listen(self, events) -> bool:
         """Listen the events concerning the earth surface.
 
         The earth view surface listens for the following:
@@ -393,8 +397,11 @@ class RegionsSurface(pygame.Surface):
             * Selecting a region by clicking on it
             * Deselecting region by clicking outside
 
+        :return: True if the region surface has been updated.
+
 
         """
+        logger.debug(f"[START] Listening : {events}")
         if not self.get_rect().collidepoint(mouse.get_pos()):
             return False
         # Finds on which region is the mouse
@@ -410,7 +417,7 @@ class RegionsSurface(pygame.Surface):
         if clicked:
             # Select the clicked region
             self.selected_region = hovered
-            self.on_region_selected()
+            self.on_region_selected(self.selected_region)
 
         if self._previous_hovered == hovered:
             return False
@@ -429,4 +436,7 @@ class RegionsSurface(pygame.Surface):
 
         self.blit(self.earth_map_img, (0, 0))
         self.blit(self.region_surface, (0, 0))
+
+        logger.debug(f"[FINISHED] Listening : {events}")
+
         return True

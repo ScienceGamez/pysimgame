@@ -1,8 +1,10 @@
 """The model that runs with the game."""
 from __future__ import annotations
 from functools import cached_property
+import logging
 import os
 import shutil
+from dataclasses import dataclass
 
 from typing import Dict, Iterable, List
 import numpy as np
@@ -11,7 +13,9 @@ import pandas as pd
 
 from typing import TYPE_CHECKING
 
-from .utils.logging import logger
+from pysdgame.regions_display import RegionComponent
+
+from .utils.logging import logger, logger_enter_exit
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
@@ -24,6 +28,14 @@ POLICY_PREFIX = "policy_"
 # 3. the funciton to replace
 # example name: policy_policyname_func_to_replace
 POLICY_DICT = Dict[str, List[str]]
+
+
+@dataclass
+class Policy:
+    """Represent a policy chosen by the user attributed to a region."""
+
+    name: str
+    region: RegionComponent
 
 
 class ModelManager:
@@ -180,19 +192,24 @@ class ModelManager:
         self._capture_elements = elements
         logger.info(f"Set captured elements: {elements}")
 
-    def apply_policies(self, policies: POLICY_DICT):
+    @logger_enter_exit()
+    def apply_policies(self):
         """Apply the requested policies to all the requested regions."""
-        for region, policies in policies.items():
+        while not self.game_manager.policy_queue.empty():
+            # Get the next policy in the queue
+            policy = self.game_manager.policy_queue.get()
+            logger.info(f"apply_policy: {policy}")
             # Access the correct region
-            model = self.models[region]
-            for policy in policies:
-                self._apply_policy(model, policy)
 
-    def _apply_policy(self, model, policy: str):
+            self._apply_policy(policy)
+
+    @logger_enter_exit(level=logging.INFO, with_args=True, ignore_exit=True)
+    def _apply_policy(self, policy: Policy):
         """Apply the policy to the model (replacing the function)."""
-        new_method = getattr(model.components, POLICY_PREFIX + policy)
+        model = self.models[policy.region]
+        new_method = getattr(model.components, POLICY_PREFIX + policy.name)
         # Removes the prefix and policy name
-        method_name = "_".join(policy.split("_")[1:])
+        method_name = "_".join(policy.name.split("_")[1:])
         # TODO: Apply all the functions corresponding to that policy
         # Now: only apply the one policy
         old_method = getattr(model.components, method_name)
@@ -224,16 +241,16 @@ class ModelManager:
         Update all regions.
         TODO: Fix that the first step is the same as intialization.
         """
+        # Apply the policies
+        self.apply_policies()
         # Run each of the models
         self.current_time = next(self.t_serie)
         self.current_step += 1
         # Update each region one by one
         for model in self.models.values():
             model._euler_step(self.current_time - model.time())
-            model.time.update(
-                self.current_time
-            )  # this will clear the stepwise caches
-            model.components.cache.reset(self.current_time)
+            model.time.update(self.current_time)
+            model.clean_caches()
         # Saves right after the iteration
         self._save_current_elements()
 
