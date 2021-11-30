@@ -129,7 +129,7 @@ class SettingsMenuManager(pygame_gui.UIManager):
         def start_game_loop_decorator(func):
             def decorated_func(*args, **kwargs):
                 ret = func(*args, **kwargs)
-                self.GAME_MANAGER.start_game_loop()
+                self.GAME_MANAGER.run_game_loop()
 
             return decorated_func
 

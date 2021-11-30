@@ -5,6 +5,7 @@ Check using the version if the file must be updated.
 import json
 import os
 import shutil
+from typing import Any, Dict
 
 import pysdgame
 from pysdgame.utils import recursive_dict_missing_values
@@ -41,7 +42,7 @@ if not os.path.isfile(SETTINGS_FILE):
 
 # Settings file should exists now
 with open(SETTINGS_FILE) as f:
-    PYSDGAME_SETTINGS = json.load(f)
+    PYSDGAME_SETTINGS: Dict[str, Any] = json.load(f)
 
 
 logger.debug(f"PYSDGAME SETTING : {PYSDGAME_SETTINGS}")

@@ -8,7 +8,7 @@ DEV_MODE = True  # TODO: change false on production
 
 import logging
 
-LOGGING_LEVEL = logging.DEBUG
+LOGGING_LEVEL = logging.INFO
 
 from .utils.directories import PYSDGAME_DIR
 from .utils.pysdgame_settings import PYSDGAME_SETTINGS

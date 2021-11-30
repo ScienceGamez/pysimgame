@@ -40,8 +40,8 @@ class GraphsManager:
     Updates the at every step with the new data.
     """
 
-    ui_plot_windows: List[UIPlotWindow] = []
-    model_outputs: pandas.DataFrame
+    ui_plot_windows: List[UIPlotWindow]
+    model_manager: ModelManager
     _connected: bool = False
 
     def __init__(self, region_colors_dict, ui_manager) -> None:
@@ -49,21 +49,11 @@ class GraphsManager:
 
         Same args as pygame.Surface().
         """
-
+        self.ui_plot_windows = []
         self.previous_serie = None
         logger.debug(region_colors_dict)
         self.region_colors = region_colors_dict
         self.ui_manager = ui_manager
-
-    def parse_initial_outputs(self, model_outputs):
-
-        # Create a df containing regions and alements
-        keys_df = model_outputs.keys().to_frame(index=False)
-        keys_df["regions"].unique()
-        keys_df["elements"].unique()
-
-        for plot_window in self.ui_plot_windows:
-            pass
 
     def get_a_rect(self) -> pygame.Rect:
         """Return a rect from a nice place in the main window.
@@ -156,11 +146,12 @@ class GraphsManager:
 
         plot_window.set_display_title(beautify_parameter_name(title))
 
-    def update(self, model_outputs: pandas.DataFrame):
+    def update(self):
         """Update the graphs based on the new outputs.
 
         All the windows are updated with their parameters one by one.
         """
+        model_outputs = self.model_manager.outputs
         if len(model_outputs) < 2:
             # Cannot plot lines if only one point
             return
@@ -230,6 +221,7 @@ class GraphsManager:
     def connect_to_model(self, model_manager: ModelManager):
         """Connect the graphs display to the models."""
         self.model_outputs = model_manager.outputs
+        self.model_manager = model_manager
 
         # Create a df containing regions and alements
         self.df_keys = self.model_outputs.keys().to_frame(index=False)

@@ -6,7 +6,7 @@ import pysdgame
 
 # Logging parameters
 formatter = logging.Formatter(
-    "%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s"
+    "%(asctime)s %(threadName)-10s %(name)s %(levelname)-8s %(message)s"
 )
 location_formatter = logging.Formatter(
     '"%(pathname)s", line %(lineno)d, in %(module)s %(funcName)s'

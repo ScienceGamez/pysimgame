@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 from dataclasses import dataclass
+from threading import Lock, Thread
 
 from typing import Dict, Iterable, List
 import numpy as np
@@ -13,12 +14,15 @@ import pandas as pd
 
 from typing import TYPE_CHECKING
 
+import pygame
+
 from pysdgame.regions_display import RegionComponent
 
 from .utils.logging import logger, logger_enter_exit
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
+    import pysd
 
 
 POLICY_PREFIX = "policy_"
@@ -49,6 +53,10 @@ class ModelManager:
 
     game_manager: GameManager
     _elements_names: List[str] = None  # Used to internally store elements
+    models: List[pysd.statefuls.Model]
+    time_step: float
+    clock: pygame.time.Clock
+    fps: float
 
     def __init__(
         self,
@@ -78,7 +86,7 @@ class ModelManager:
                 self.models, game_manager.game.PYSD_MODEL_FILE
             )
         )
-
+        model: pysd.statefuls.Model
         # Initialize each model
         for model in self.models.values():
             # Can set initial conditions to the model variables
@@ -86,26 +94,20 @@ class ModelManager:
 
             # Set the model in run phase
             model.time.stage = "Run"
-            # cleans the cache of the components
             logger.debug(f"Model components {model.components}.")
+            # cleans the cache of the components
             model.cache.clean()
 
-        self.time = model.time
-
-        # Create the axis of timesteps
+        self.clock = pygame.time.Clock()
+        # Create the time managers
         logger.debug(f"initial_time {model.components.initial_time()}.")
         logger.debug(f"time_step {model.components.time_step()}.")
         logger.debug(f"final_time {model.components.final_time()}.")
-        self.time_axis = np.arange(
-            model.time(),
-            model.components.final_time() + model.components.time_step(),
-            step=model.components.time_step(),
-            dtype=float,
-        )
-        logger.debug(f"Built time array: {self.time_axis}.")
-        self.t_serie = iter(self.time_axis)
+
+        self.time_axis = []
         self.current_time = model.time()
         self.current_step = int(0)
+        self.time_step = model.components.time_step()
 
         self.capture_elements = capture_elements
 
@@ -121,6 +123,18 @@ class ModelManager:
 
         # Saves the starting state
         self._save_current_elements()
+
+    @property
+    def fps(self):
+        """Get the frames per second of the model."""
+        return self._fps
+
+    @fps.setter
+    def fps(self, new_fps: float):
+        if new_fps < 0:
+            raise ValueError(f"FPS must be positive not {new_fps}.")
+        else:
+            self._fps = new_fps
 
     @cached_property
     def elements_names(self) -> List[str]:
@@ -226,15 +240,17 @@ class ModelManager:
             print("Try again.")
             return self.read_filepath()
 
+    @logger_enter_exit(ignore_exit=True)
     def _save_current_elements(self):
-        logger.debug(f"[STARTED]_save_current_elements : {self.outputs}")
         for region, model in self.models.items():
             self.outputs.at[model.time(), region] = [
                 getattr(model.components, key)()
                 for key in self.capture_elements
             ]
-        logger.debug(f"[FINISHED]_save_current_elements : {self.outputs}")
+        # Also save the time
+        self.time_axis.append(self.current_time)
 
+    @logger_enter_exit(ignore_exit=True)
     def step(self):
         """Step of the global model.
 
@@ -244,8 +260,10 @@ class ModelManager:
         # Apply the policies
         self.apply_policies()
         # Run each of the models
-        self.current_time = next(self.t_serie)
+        self.current_time += self.time_step
         self.current_step += 1
+
+        model: pysd.statefuls.Model
         # Update each region one by one
         for model in self.models.values():
             model._euler_step(self.current_time - model.time())
@@ -254,5 +272,34 @@ class ModelManager:
         # Saves right after the iteration
         self._save_current_elements()
 
-    def get_current_data(self):
-        return self.outputs.loc[self.time()]
+    def pause(self):
+        """Set the model to pause.
+
+        It can be started again using :py:meth:`run`.
+        """
+        with Lock():
+            self._paused = True
+        logger.info("Model paused.")
+
+    def is_paused(self) -> bool:
+        """Return True if the game is paused else False."""
+        return self._paused
+
+    def run(self):
+        """Run the model.
+
+        Will execute a step at each fps.
+        It can be paused using :py:meth:`pause`.
+        """
+        with Lock():
+            self._paused = False
+        logger.info("Model started.")
+        self.clock.tick(self.fps)
+        while not self._paused:
+            self.step()
+            ms = self.clock.tick(self.fps)
+            # Record the exectution time
+            ms_step = self.clock.get_rawtime()
+            logger.info(
+                f"Model step executed in {ms_step} ms, ticked {ms} ms."
+            )
