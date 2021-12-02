@@ -6,9 +6,9 @@ import os
 import shutil
 from dataclasses import dataclass
 from threading import Lock, Thread
+import threading
 
 from typing import Dict, Iterable, List
-import numpy as np
 import pandas as pd
 
 
@@ -16,12 +16,14 @@ from typing import TYPE_CHECKING
 
 import pygame
 
+
 from pysdgame.regions_display import RegionComponent
 
 from .utils.logging import logger, logger_enter_exit
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
+    from pysdgame.plots import PlotsManager
     import pysd
 
 
@@ -51,7 +53,9 @@ class ModelManager:
     a model.
     """
 
-    game_manager: GameManager
+    GAME_MANAGER: GameManager
+    PLOTS_MANAGER: PlotsManager
+
     _elements_names: List[str] = None  # Used to internally store elements
     models: List[pysd.statefuls.Model]
     time_step: float
@@ -60,7 +64,7 @@ class ModelManager:
 
     def __init__(
         self,
-        game_manager: GameManager,
+        GAME_MANAGER: GameManager,
         capture_elements: List[str] = None,
     ) -> None:
         """Create a model manager.
@@ -74,16 +78,16 @@ class ModelManager:
         # Import pysd here only, because it takes much time to import it
         import pysd
 
-        self.game_manager = game_manager
-        regions = game_manager.game.REGIONS_DICT.keys()
+        self.GAME_MANAGER = GAME_MANAGER
+        regions = GAME_MANAGER.game.REGIONS_DICT.keys()
         self.models = {
-            region: pysd.load(game_manager.game.PYSD_MODEL_FILE)
+            region: pysd.load(GAME_MANAGER.game.PYSD_MODEL_FILE)
             for region in regions
         }
 
         logger.info(
             "Created {} from file {}".format(
-                self.models, game_manager.game.PYSD_MODEL_FILE
+                self.models, GAME_MANAGER.game.PYSD_MODEL_FILE
             )
         )
         model: pysd.statefuls.Model
@@ -206,12 +210,20 @@ class ModelManager:
         self._capture_elements = elements
         logger.info(f"Set captured elements: {elements}")
 
+    def connect(self):
+        """Connect the components required by the Model Manager.
+
+        PLOTS_MANAGER is required as it will be called when the
+        model has finished a step.
+        """
+        self.PLOTS_MANAGER = self.GAME_MANAGER.PLOTS_MANAGER
+
     @logger_enter_exit()
     def apply_policies(self):
         """Apply the requested policies to all the requested regions."""
-        while not self.game_manager.policy_queue.empty():
+        while not self.GAME_MANAGER.policy_queue.empty():
             # Get the next policy in the queue
-            policy = self.game_manager.policy_queue.get()
+            policy = self.GAME_MANAGER.policy_queue.get()
             logger.info(f"apply_policy: {policy}")
             # Access the correct region
 
@@ -271,6 +283,11 @@ class ModelManager:
             model.clean_caches()
         # Saves right after the iteration
         self._save_current_elements()
+        # Updates the plots, now that the step was done
+        # TODO: check if not joining here will lead to an issue
+        threading.Thread(
+            target=self.PLOTS_MANAGER.update, name="Plot Update"
+        ).start()
 
     def pause(self):
         """Set the model to pause.

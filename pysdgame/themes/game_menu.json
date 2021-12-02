@@ -1,66 +1,53 @@
 {
-    "#menu_overlay_buttons_style":{
-        "misc":
-        {
+    "#menu_overlay_buttons_style": {
+        "misc": {
             "shape": "rounded_rectangle",
             "shape_corner_radius": "10",
             "border_width": "1",
             "shadow_width": "2"
         }
     },
-    "form_layout.text_box":
-    {
+    "form_layout.text_box": {
         "prototype": "#menu_overlay_buttons_style"
     },
-    "button":
-    {
+    "button": {
         "prototype": "#menu_overlay_buttons_style"
     },
-    "#open_menu_button":
-    {
+    "#open_menu_button": {
         "prototype": "#menu_overlay_buttons_style",
-        "images":
-        {
+        "images": {
             "normal_image": {
                 "path": "pysdgame/themes/icons/menu.png"
             }
         }
     },
-    "#help_button":
-    {
+    "#help_button": {
         "prototype": "#menu_overlay_buttons_style",
-        "images":
-        {
+        "images": {
             "normal_image": {
                 "path": "pysdgame/themes/icons/help.png"
             }
         }
     },
-    "#graphs_button":
-    {
+    "#plots_button": {
         "prototype": "#menu_overlay_buttons_style",
-        "images":
-        {
+        "images": {
             "normal_image": {
-                "path": "pysdgame/themes/icons/graphs.png"
+                "path": "pysdgame/themes/icons/plots.png"
             }
         }
     },
-    "#stats_button":
-    {
+    "#stats_button": {
         "prototype": "#menu_overlay_buttons_style",
-        "images":
-        {
+        "images": {
             "normal_image": {
                 "path": "pysdgame/themes/icons/stats.png"
             }
         }
     },
-    "#regions_button":
-    {
+    "#regions_button": {
         "prototype": "#menu_overlay_buttons_style",
-        "images":
-        {
+        "images": {
             "normal_image": {
                 "path": "pysdgame/themes/icons/regions.png"
             }

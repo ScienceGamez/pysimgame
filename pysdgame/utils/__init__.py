@@ -1,7 +1,14 @@
 """Utility module."""
+from __future__ import annotations
 
 import logging
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
+from abc import ABC, abstractmethod
+
+
+if TYPE_CHECKING:
+    from pysdgame.game_manager import Game
+    from pysdgame.game_manager import GameManager
 
 
 def recursive_dict_missing_values(dic_from: dict, dic_to: dict) -> dict:
@@ -53,3 +60,35 @@ class _HintDisplay:
 
 
 HINT_DISPLAY = _HintDisplay()
+
+
+class GameComponentManager(ABC):
+    """Abstract class for managing different components of the game."""
+
+    GAME_MANAGER: GameManager
+    GAME: Game
+
+    def __init__(self, GAME_MANAGER: GameManager) -> None:
+        self.GAME_MANAGER = GAME_MANAGER
+        self.GAME = GAME_MANAGER.GAME
+
+    def __str__(self) -> str:
+        return f"{self.__name__} for '{self.GAME_MANAGER.game.NAME}'"
+
+    @abstractmethod
+    def prepare(self):
+        """Prepare the component to be ready.
+
+        This part should load content required and instantiate anything.
+        Note that this method should be able to be called on a dedicated thread.
+        """
+        return NotImplemented
+
+    @abstractmethod
+    def connect(self):
+        """Connect this component manager to the other components.
+
+        Will be automatically called by the :py:class:`GameManager`.
+        This will be called on the main thread.
+        """
+        return NotImplemented

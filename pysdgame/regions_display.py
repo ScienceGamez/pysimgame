@@ -246,7 +246,7 @@ class RegionsSurface(pygame.Surface):
 
     def __init__(
         self,
-        game_manager: GameManager,
+        GAME_MANAGER: GameManager,
         *args,
         **kwargs,
     ) -> None:
@@ -254,12 +254,12 @@ class RegionsSurface(pygame.Surface):
 
         Same args as pygame.Surface().
         """
-        super().__init__(game_manager.MAIN_DISPLAY.get_size(), *args, **kwargs)
-        self.game_manager = game_manager
+        super().__init__(GAME_MANAGER.MAIN_DISPLAY.get_size(), *args, **kwargs)
+        self.GAME_MANAGER = GAME_MANAGER
 
         self.load_background_image()
 
-        if len(game_manager.game.REGIONS_DICT) > 1:
+        if len(GAME_MANAGER.game.REGIONS_DICT) > 1:
             # Set up the manager for multiple regions
             self.load_regions()
 
@@ -316,11 +316,11 @@ class RegionsSurface(pygame.Surface):
         If no image is given, this will continue.
         """
         backgrounds_dir = Path(
-            self.game_manager.game.GAME_DIR, BACKGROUND_DIR_NAME
+            self.GAME_MANAGER.game.GAME_DIR, BACKGROUND_DIR_NAME
         )
 
         # The background image takes the full space of the game
-        size = self.game_manager.MAIN_DISPLAY.get_size()
+        size = self.GAME_MANAGER.MAIN_DISPLAY.get_size()
 
         image_file = "{}x{}.tga".format(*size)
         img_path = Path(backgrounds_dir, image_file)
@@ -357,11 +357,11 @@ class RegionsSurface(pygame.Surface):
         could read from official geo data maps and show regions as requested
         by the models.
         """
-        regions_dir = os.path.join(self.game_manager.GAME_DIR, "regions")
+        regions_dir = os.path.join(self.GAME_MANAGER.GAME_DIR, "regions")
         if not os.path.isdir(regions_dir):
             os.mkdir(regions_dir)
         # TODO: change that to get the default resolution from the regions folder
-        regions_resolution = self.game_manager
+        regions_resolution = self.GAME_MANAGER
         regions_files = [
             os.path.join(regions_dir, file) for file in os.listdir(regions_dir)
         ]

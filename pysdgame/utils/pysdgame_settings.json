@@ -11,7 +11,7 @@
         "Game Menu": "game_menu.json"
     },
     "Display Proportions": {
-        "GraphsControl width": 0.3,
+        "PlotsControl width": 0.3,
         "Plots width": 0.3
     }
 }

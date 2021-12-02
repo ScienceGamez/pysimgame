@@ -13,6 +13,7 @@ import pygame
 from pygame.event import Event
 
 from pysdgame import PYSDGAME_SETTINGS
+from pysdgame.utils import GameComponentManager
 from pysdgame.utils.directories import THEMES_DIR
 from pysdgame.utils.logging import logger
 
@@ -20,32 +21,35 @@ from pysdgame.utils.dynamic_menu import UISettingsMenu
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
+    from pysdgame.plots import PlotsManager
 
 import pygame_gui
 from pygame_gui.elements import UIButton
 
 
-class MenuOverlayManager(pygame_gui.UIManager):
+class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
     """Class that handles the menu of the game."""
 
-    GAME_MANAGER: GameManager
+    PLOTS_MANAGER: PlotsManager
 
-    def __init__(
-        self, game_manager: GameManager, relative_height: float = 0.07
-    ) -> None:
+    def __init__(self, GAME_MANAGER: GameManager) -> None:
         """Initialize the Menu overlay of the game.
 
         Args:
-            game_manager: The game manager.
+            GAME_MANAGER: The game manager.
         """
-        self.GAME_MANAGER = game_manager
+        GameComponentManager.__init__(self, GAME_MANAGER)
 
-        screen_resolution = game_manager.MAIN_DISPLAY.get_size()
+    def prepare(self, relative_height: float = 0.07):
+        # TODO: see how we want to make the relative height a setting
+
+        screen_resolution = self.GAME_MANAGER.MAIN_DISPLAY.get_size()
         game_menu_theme_path = Path(
             THEMES_DIR, PYSDGAME_SETTINGS["Themes"]["Game Menu"]
         )
         logger.debug(f"Theme for Menu: {game_menu_theme_path}")
-        super().__init__(
+        pygame_gui.UIManager.__init__(
+            self,
             screen_resolution,
             theme_path=game_menu_theme_path,
         )
@@ -77,7 +81,7 @@ class MenuOverlayManager(pygame_gui.UIManager):
                 create_rect(2),
                 text="",
                 manager=self,
-                object_id="#graphs_button",
+                object_id="#plots_button",
             ),
             UIButton(
                 create_rect(3),
@@ -92,6 +96,9 @@ class MenuOverlayManager(pygame_gui.UIManager):
                 object_id="#regions_button",
             ),
         ]
+
+    def connect(self):
+        self.PLOTS_MANAGER = self.GAME_MANAGER.PLOTS_MANAGER
 
     def process_events(self, event: Event):
         handled = super().process_events(event)
@@ -109,6 +116,12 @@ class MenuOverlayManager(pygame_gui.UIManager):
                 self.GAME_MANAGER.start_settings_menu_loop()
                 # When the menu is closed, this code continues here
                 handled = True
+            elif event.ui_object_id == "#plots_button":
+                # Will open the menu
+                # TODO: decide how to handle new plots
+                self.PLOTS_MANAGER.add_graph()
+                # When the menu is closed, this code continues here
+                handled = True
 
         return handled
 
@@ -118,9 +131,9 @@ class SettingsMenuManager(pygame_gui.UIManager):
 
     GAME_MANAGER: GameManager
 
-    def __init__(self, game_manager: GameManager):
-        self.GAME_MANAGER = game_manager
-        display_size = game_manager.MAIN_DISPLAY.get_size()
+    def __init__(self, GAME_MANAGER: GameManager):
+        self.GAME_MANAGER = GAME_MANAGER
+        display_size = GAME_MANAGER.MAIN_DISPLAY.get_size()
         super().__init__(
             display_size,
             theme_path=PYSDGAME_SETTINGS["Themes"]["Settings"],
@@ -134,7 +147,7 @@ class SettingsMenuManager(pygame_gui.UIManager):
             return decorated_func
 
         self.menu = UISettingsMenu(
-            game_manager.MAIN_DISPLAY.get_rect(),
+            GAME_MANAGER.MAIN_DISPLAY.get_rect(),
             self,
             PYSDGAME_SETTINGS,
         )

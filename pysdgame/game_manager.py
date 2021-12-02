@@ -1,5 +1,6 @@
 """Contain a class that makes the game management."""
 from __future__ import annotations
+
 import os
 import pathlib
 import sys
@@ -11,6 +12,7 @@ from functools import cached_property
 from typing import Any, Dict, Tuple
 import pygame
 import pygame.display
+from pygame.event import Event
 import pygame.font
 import pygame_gui
 from pygame_gui.ui_manager import UIManager
@@ -18,8 +20,8 @@ from pygame_gui.ui_manager import UIManager
 from .utils.pysdgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
 from .types import RegionsDict
 from .menu import MenuOverlayManager, SettingsMenuManager
-from .utils import recursive_dict_missing_values
-from .graphs import GraphsManager
+from .utils import GameComponentManager, recursive_dict_missing_values
+from .plots import PlotsManager
 from .regions_display import (
     RegionComponent,
     RegionsSurface,
@@ -106,15 +108,21 @@ class Game:
         logger.debug(f"Game Settings content: {self.SETTINGS}.")
 
 
-class GameManager:
+class GameManager(GameComponentManager):
+    """Main component of the game.
+
+    Organizes the other components from the game.
+    """
+
     ## GAME manager MUST be run on a main thread !
     _game: Game
     _model_fps: float = 1
     fps_counter: int = 0
-    model_manager: ModelManager = None
+    MODEL_MANAGER: ModelManager = None
     _is_loading: bool = False
     _loading_screen_thread: threading.Thread
     UI_MANAGER: UIManager
+    PLOTS_MANAGER: PlotsManager
     # Stores the time
     CLOCK: pygame.time.Clock
 
@@ -122,6 +130,28 @@ class GameManager:
     MAIN_DISPLAY: pygame.Surface = None
     # Stores the policies waiting to be processed
     policy_queue: Queue[Policy]
+
+    def __init__(self) -> None:
+        """Override the main :py:class:`GameManager` is the main organizer."""
+        pass
+
+    @property
+    def GAME(self) -> Game:
+        """A :py:class:`Game` instance for the current game managed."""
+        return self._game
+
+    @property
+    def game(self) -> Game:
+        """A :py:class:`Game` instance for the current game managed."""
+        return self._game
+
+    @game.setter
+    def game(self, game: Tuple[Game, str]):
+        if isinstance(game, str):
+            # Creates the game object required
+            game = Game(game)
+        self._game = game
+        logger.info(f"New game set: '{self.game.NAME}'.")
 
     def _load_game_content(self):
         logger.debug(f"[START] Loading {self.game.NAME}.")
@@ -156,34 +186,32 @@ class GameManager:
         Menu buttons are set at the top right.
         """
         self.MENU_OVERLAY = MenuOverlayManager(self)
+        self.MENU_OVERLAY.prepare()
 
     def _prepare_graph_display(self):
-        self.GRAPHS_MANAGER = GraphsManager(
-            {
-                name: cmpnt.color
-                for name, cmpnt in self.game.REGIONS_DICT.items()
-                if name is not None
-            },
-            self.UI_MANAGER,
-        )
-        # self.GRAPHS_MANAGER.add_graph()
+        self.PLOTS_MANAGER = PlotsManager(self)
+        self.PLOTS_MANAGER.prepare()
+        # self.PLOTS_MANAGER.add_graph()
 
     def _start_model(self):
         logger.debug("[START] Starting the model")
         # Set the queue for processing of the policies
         self.policy_queue = Queue()
         # Create an instance managing the model
-        self.model_manager = ModelManager(self)
-        self.model_manager.fps = self.game.SETTINGS.get("FPS", 1)
+        self.MODEL_MANAGER = ModelManager(self)
+        self.MODEL_MANAGER.fps = self.game.SETTINGS.get("FPS", 1)
         # Finds out all the policies available
         # self.policies_dict = self.model._discover_policies()
-        self.model_thread = threading.Thread(target=self.model_manager.run)
+        self.model_thread = threading.Thread(target=self.MODEL_MANAGER.run)
 
         # All possible unique policies
         # self.policies = list(set(sum(self.policies_dict.values(), [])))
         logger.debug("[FINISHED] Starting the model")
         # await asyncio.sleep(1)
         return
+
+    def prepare(self):
+        self._prepare_components()
 
     def _prepare_components(self):
         # Regions have to be loaded first as they are used by the othres
@@ -215,8 +243,6 @@ class GameManager:
         # Wait each thread to finish
         p0.join()
         p1.join()
-        # Components are ready, we can connect them
-        self.GRAPHS_MANAGER.connect_to_model(self.model_manager)
 
         # Loading is finished
         logger.debug(f"SETTING _is_loading {self._is_loading}")
@@ -228,29 +254,26 @@ class GameManager:
             "Loading Time: {} sec.".format(time.time() - start_time)
         )
 
-    @property
-    def game(self):
-        """A :py:class:`Game` instance for the current game managed."""
-        return self._game
-
-    @game.setter
-    def game(self, game: Tuple[Game, str]):
-        if isinstance(game, str):
-            # Creates the game object required
-            game = Game(game)
-        self._game = game
-        logger.info(f"New game set: '{self._game.NAME}'.")
+    def connect(self):
+        # Components are ready, we can connect them together
+        self.PLOTS_MANAGER.connect()
+        self.MENU_OVERLAY.connect()
+        self.MODEL_MANAGER.connect()
 
     def start_new_game(self, game: Tuple[Game, str]):
         """Start a new game."""
         pygame.init()
         self.game = game
 
-        self._prepare_components()
+        logger.info("Preparing the game components")
+        self.prepare()
+
+        logger.info("Connecting the game components")
+        self.connect()
 
         logger.info("---Game Ready---")
 
-        logger.debug(self.model_manager)
+        logger.debug(self.MODEL_MANAGER)
 
         # Start the simulator
         self.model_thread.start()
@@ -309,6 +332,19 @@ class GameManager:
 
         return self.MAIN_DISPLAY
 
+    def process_event(self, event: Event):
+        logger.debug(f"Processing {event}")
+        if event.type == pygame.QUIT:
+            self.MODEL_MANAGER.pause()
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.TEXTINPUT:
+            self._process_textinput_event(event)
+
+        self.UI_MANAGER.process_events(event)
+        self.MENU_OVERLAY.process_events(event)
+        self.PLOTS_MANAGER.process_events(event)
+
     def run_game_loop(self):
         """Main game loop.
 
@@ -329,16 +365,7 @@ class GameManager:
             logger.debug(f"Events: {events}")
             # Lood for quit events
             for event in events:
-                logger.debug(f"Processing {event}")
-                if event.type == pygame.QUIT:
-                    self.model_manager.pause()
-                    pygame.quit()
-                    sys.exit()
-                elif event.type == pygame.TEXTINPUT:
-                    self._process_textinput_event(event)
-
-                self.UI_MANAGER.process_events(event)
-                self.MENU_OVERLAY.process_events(event)
+                self.process_event(event)
 
             blit = self.REGIONS_DISPLAY.listen(events)
             self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
@@ -346,8 +373,6 @@ class GameManager:
             # Handles the actions for pygame widgets
             self.UI_MANAGER.update(time_delta / 1000.0)
             self.MENU_OVERLAY.update(time_delta / 1000.0)
-
-            self.GRAPHS_MANAGER.update()
 
             self.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
             self.MENU_OVERLAY.draw_ui(self.MAIN_DISPLAY)
@@ -360,7 +385,11 @@ class GameManager:
             logger.warn(f"{self.model_thread} is still running.")
             return
         self.model_thread.join()
-        self.model_thread = threading.Thread(target=self.model_manager.run)
+        self.model_thread = threading.Thread(
+            target=self.MODEL_MANAGER.run,
+            # Make it a deamon so it stops when the main thread raises error
+            daemon=True,
+        )
         self.model_thread.start()
 
     def _process_textinput_event(self, event):
@@ -369,10 +398,10 @@ class GameManager:
             case " ":
                 logger.debug(f"Found Space")
                 # Space set the game to pause or play
-                if self.model_manager.is_paused():
+                if self.MODEL_MANAGER.is_paused():
                     self._start_new_model_thread()
                 else:
-                    self.model_manager.pause()
+                    self.MODEL_MANAGER.pause()
 
     def start_settings_menu_loop(self):
         """Open the settings menu.
@@ -387,7 +416,7 @@ class GameManager:
             # Lood for quit events
             for event in events:
                 if event.type == pygame.QUIT:
-                    self.model_manager.pause()
+                    self.MODEL_MANAGER.pause()
                     pygame.quit()
                     sys.exit()
 
@@ -400,150 +429,3 @@ class GameManager:
             menu_manager.draw_ui(self.MAIN_DISPLAY)
 
             pygame.display.update()
-
-
-class OldGameManager:
-    """Game Manager that handles how the game works.
-
-    Can handle any game based on a pysd simulation.
-
-    TODO: Handle the positions of the different displays based on screen size.
-    """
-
-    BACKGROUND_COLOR = "black"
-    collected_policies = {}
-    GAME_DIR: str
-    GRAPHS_MANAGER: GraphsManager
-    UPDATE_SETTINGS: bool = True
-
-    def __init__(self, game_name="Illuminati's Fate") -> None:
-
-        self.GAME_DIR = os.path.join(PYSDGAME_DIR, game_name)
-        if not os.path.isdir(self.GAME_DIR):
-            os.mkdir(self.GAME_DIR)
-
-        self.read_version()
-        self.read_settings()
-
-        pygame.init()
-        pygame.display.set_caption(game_name)
-
-        self.set_fps()
-
-        self.ui_manager = pygame_gui.UIManager(
-            self.PYGAME_SETTINGS["Resolution"]
-        )
-
-        self.set_game_diplays()
-
-        self.setup_model()
-
-    def read_version(self):
-        """Should read the version and decide what to do based on it."""
-        # TODO: implement something here that writes and reads the version
-        self.UPDATE_SETTINGS = True
-
-    def read_settings(self):
-        """Read the user settings for that game."""
-        # Check the settings exist or copy them
-        settings_dir = os.path.join(self.GAME_DIR, "settings")
-        if not os.path.isdir(settings_dir):
-            os.mkdir(settings_dir)
-        print(settings_dir)
-        self.settings_file = os.path.join(settings_dir, "pygame_settings.json")
-        default_file_dir = os.path.dirname(os.path.abspath(__file__))
-        default_settings_file = os.path.join(
-            default_file_dir, "pygame_settings.json"
-        )
-
-        if not os.path.isfile(self.settings_file) or self.UPDATE_SETTINGS:
-            # Loads the default
-            with open(default_settings_file) as f:
-                default_settings = json.load(f)
-
-        # Loads the user settings file
-
-        if os.path.isfile(self.settings_file):
-            with open(self.settings_file) as f:
-                self.PYGAME_SETTINGS = json.load(f)
-            if self.UPDATE_SETTINGS:
-
-                # Update settings that don't exist
-                recursive_dict_missing_values(
-                    default_settings, self.PYGAME_SETTINGS
-                )
-        else:
-            # Attributes the default settings
-            self.PYGAME_SETTINGS = default_settings
-
-    def save_settings(self):
-        """Save the current settings in the setting file."""
-        with open(self.settings_file, "w") as f:
-            json.dump(self.PYGAME_SETTINGS, f, indent=2)
-
-    def set_game_diplays(self):
-        # Sets the displays
-        self.set_main_display()
-        self.set_regions_display()
-        self.set_graph_display()
-        self.set_menu_displays()
-
-    def set_main_display(self):
-        """Set up the 'big window' of the game."""
-        self.MAIN_DISPLAY = pygame.display.set_mode(
-            self.PYGAME_SETTINGS["Resolution"]
-        )
-
-    def set_regions_display(self):
-        self.REGIONS_DISPLAY = RegionsSurface(
-            self, on_region_selected=self.on_region_selected
-        )
-        self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
-
-    def set_menu_displays(self):
-        """Set up the menu displayer of the game.
-
-        Menu buttons are set at the top right.
-        """
-        self.MENU_OVERLAY = MenuOverlayManager(
-            self,
-        )
-
-    def on_region_selected(self):
-        logger.info(
-            "region '{}' selected".format(
-                self.REGIONS_DISPLAY.selected_region.name
-            )
-        )
-
-    def set_graph_display(self):
-        self.GRAPHS_MANAGER = GraphsManager(
-            {
-                name: cmpnt.color
-                for name, cmpnt in self.REGIONS_DISPLAY.region_components.items()
-                if name is not None
-            },
-            self.ui_manager,
-        )
-        self.GRAPHS_MANAGER.add_graph()
-
-    def setup_model(self):
-        """Set up the model and the different policies applicable."""
-
-        self.model = ModelManager(
-            self,
-        )
-
-        # Finds out all the policies available
-        self.policies_dict = self.model._discover_policies()
-
-        # All possible unique policies
-        self.policies = list(set(sum(self.policies_dict.values(), [])))
-
-        # Connects to the graphs manager
-        self.GRAPHS_MANAGER.connect_to_model(self.model)
-
-    def add_policy(self, region, policy):
-        if region not in self.collected_policies:
-            self.collected_policies[region] = []
-        self.collected_policies[region].append(policy)

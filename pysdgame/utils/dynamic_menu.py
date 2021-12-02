@@ -16,7 +16,7 @@ from pygame_gui.elements.ui_horizontal_slider import UIHorizontalSlider
 from pygame_gui.elements.ui_label import UILabel
 from pygame_gui.windows import UIFileDialog
 
-from pysdgame.utils import logging
+from pysdgame.utils.logging import logger
 
 
 class UIColumnContainer(UIScrollingContainer):
@@ -358,7 +358,7 @@ class UISettingsMenu(UIContainer):
                 try:
                     self.add_setting(key, value)
                 except NotImplementedError as err:
-                    logging.exception(err)
+                    logger.exception(err)
             # Allow for pointing to original settings
             self._settings_json = settings
 
@@ -520,7 +520,7 @@ class UISettingsMenu(UIContainer):
 
     def change_setting(self, key: str, value: Any):
         self._settings_json[key] = value
-        logging.info(self.get_settings())
+        logger.info(self.get_settings())
 
     def get_settings(self) -> Dict[str, Any]:
         return self._settings_json
