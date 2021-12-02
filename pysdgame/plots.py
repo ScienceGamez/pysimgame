@@ -178,7 +178,7 @@ class PlotsManager(GameComponentManager):
             regions = self.GAME.REGIONS_DICT.keys()
         plot_window.regions = regions
         if elements is None:
-            elements = self.MODEL_MANAGER.elements_names
+            elements = self.MODEL_MANAGER.capture_elements
         plot_window.elements = elements
         plot_window.ax = ax
         plot_window.figure = figure
@@ -202,40 +202,30 @@ class PlotsManager(GameComponentManager):
         # Plot all the lines required
         for region in plot_window.regions:
             for element in plot_window.elements:
-                if element == "time":
-                    continue
-                y = np.full_like(self.time_axis, np.nan)
-                serie = self.model_outputs[region, element]
-                y[: len(serie)] = serie.to_numpy().reshape(-1)
+                # Gets the elements
+                y = self.model_outputs[region, element].to_numpy().reshape(-1)
                 plot_window.ax.set_xlim(self.time_axis[0], self.time_axis[-1])
                 artists = plot_window.ax.plot(
                     self.time_axis,
                     y,
                     color=self.region_colors[region],
-                    animated=True,
                 )
-                for a in artists:
-                    # Remember for each artist what it represent
-                    a.region = region
-                    a.element = element
-                plot_window.artists.extend(artists)
 
         # Set a title to the window
         self.set_window_title(plot_window)
 
-        self.full_redraw(plot_window)
-
         # Now it is created
         plot_window._created = True
+        plot_window.update_window_image()
+        logger.info(f"Figure {plot_window.figure}")
+        logger.info(f"FigureSurf {plot_window.figuresurf}")
+        logger.info(
+            f"Are the same {plot_window.figuresurf == plot_window.figure}"
+        )
 
     # Adding plots methods
 
-    def full_redraw(self, plot_window: UIPlotWindow):
-        # figure, ax = plt.subplots(1, 1)
-
-        plot_window.figuresurf.draw(plot_window.figuresurf.canvas.renderer)
-
-    def set_window_title(self, plot_window: UIPlotWindow):
+    def set_window_title(self, plot_window: PysgamePlotWindow):
         """Find out which title should be given to the window and give it."""
         if len(plot_window.elements) == 1:
             title = plot_window.elements[0]
@@ -276,33 +266,32 @@ class PlotsManager(GameComponentManager):
             if not plot_window._created:
                 self._create_plot_window(plot_window)
 
-            # plot_window.ax.clear()
-
-            for artist in plot_window.artists:
-                # Creates the array of y data with nan values
-                serie = model_outputs[artist.region, artist.element]
-                y = serie.to_numpy().reshape(-1)
-                # Update the artist data
-                artist.set_ydata(y)
-                artist.set_xdata(x)
-                logger.debug(f"Plotting {artist.region} {artist.element}.")
-                logger.debug(f"Setting: \n x: {x} \n y: {y}.")
-                plot_window.ax.draw_artist(artist)
-
-                y_lims = plot_window.ax.get_ylim()
-                if min(y) < y_lims[0] or max(y) > y_lims[1]:
-                    MARGIN = 0.02
-                    plot_window.ax.update_datalim(
-                        [
-                            (self.time_axis[0], (1 - MARGIN) * min(y)),
-                            (self.time_axis[-1], (1 + MARGIN) * max(y)),
-                        ]
+            plot_window.ax.clear()
+            for region in plot_window.regions:
+                for element in plot_window.elements:
+                    # Gets the elements
+                    y = (
+                        self.model_outputs[region, element]
+                        .to_numpy()
+                        .reshape(-1)
                     )
-                    self.full_redraw(plot_window)
+                    plot_window.ax.set_xlim(
+                        self.time_axis[0], self.time_axis[-1]
+                    )
+                    artists = plot_window.ax.plot(
+                        self.time_axis,
+                        y,
+                        # color=self.region_colors[region],
+                        label=" ".join((region, element)),
+                    )
+                    plot_window.ax.legend()
+                    logger.debug(f"Plotting {region} {element}.")
+                    logger.debug(f"Setting: \n x: {x} \n y: {y}.")
 
-            plot_window.figuresurf.canvas.blit()
+            plot_window.figure.canvas.draw()
+            plot_window.update_window_image()
             # plot_window.figuresurf.canvas.flush_events()
-            plot_window.get_container().set_image(plot_window.figuresurf)
+            # plot_window.get_container().set_image(plot_window.figuresurf)
 
     def coordinates_from_serie(self, serie):
         """Convert a serie to pixel coordinates.

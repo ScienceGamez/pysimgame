@@ -135,6 +135,7 @@ class GameManager(GameComponentManager):
         """Override the main :py:class:`GameManager` is the main organizer."""
         pass
 
+    # region Properties
     @property
     def GAME(self) -> Game:
         """A :py:class:`Game` instance for the current game managed."""
@@ -152,6 +153,8 @@ class GameManager(GameComponentManager):
             game = Game(game)
         self._game = game
         logger.info(f"New game set: '{self.game.NAME}'.")
+
+    # endregion
 
     def _load_game_content(self):
         logger.debug(f"[START] Loading {self.game.NAME}.")
