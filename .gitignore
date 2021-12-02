@@ -18,7 +18,6 @@
 __pycache__
 
 # vscode
-.vscode/
 *.code-workspace
 
 
