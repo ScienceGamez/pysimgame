@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import cached_property
 import logging
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from threading import Lock, Thread
@@ -60,9 +61,11 @@ class ModelManager(GameComponentManager):
     _elements_names: List[str] = None  # Used to internally store elements
     capture_elements: List[str]
     models: Dict[str, pysd.statefuls.Model]
+    _model: pysd.statefuls.Model
     time_step: float
     clock: pygame.time.Clock
     fps: float
+    doc: pd.DataFrame
 
     def __init__(self, GAME_MANAGER: GameManager) -> None:
         super().__init__(GAME_MANAGER)
@@ -76,15 +79,15 @@ class ModelManager(GameComponentManager):
 
         # Create the time managers
         self.clock = pygame.time.Clock()
-        model = list(self.models.values())[0]  # Get the first model
-        logger.debug(f"initial_time {model.components.initial_time()}.")
-        logger.debug(f"time_step {model.components.time_step()}.")
-        logger.debug(f"final_time {model.components.final_time()}.")
+
+        logger.debug(f"initial_time {self._model.components.initial_time()}.")
+        logger.debug(f"time_step {self._model.components.time_step()}.")
+        logger.debug(f"final_time {self._model.components.final_time()}.")
 
         self.time_axis = []
-        self.current_time = model.time()
+        self.current_time = self._model.time()
         self.current_step = int(0)
-        self.time_step = model.components.time_step()
+        self.time_step = self._model.components.time_step()
 
         self.fps = self.GAME.SETTINGS.get("FPS", 1)
 
@@ -106,6 +109,78 @@ class ModelManager(GameComponentManager):
 
         # Saves the starting state
         self._save_current_elements()
+
+        self.doc
+        logger.info(f"Doc: {self.doc}")
+
+    @cached_property
+    def doc(self) -> Dict[str, Dict[str, str]]:
+        """Return the documentation of each component.
+
+        The return dictonary contains a dict for each component of the models.
+        The subdicts have the following keys:
+            Real Name
+            Py Name
+            Eqn
+            Unit
+            Lims
+            Type
+            Subs
+            Comment
+
+        Code directly copied and modified from pysd.
+        """
+        collector = {}
+        for name, varname in self._model.components._namespace.items():
+            if varname not in self.capture_elements:
+                # Ignore variable not in capture elements
+                continue
+            try:
+                # TODO correct this when Original Eqn is in several lines
+                docstring: str
+                docstring = getattr(self._model.components, varname).__doc__
+                lines = docstring.split("\n")
+
+                for unit_line in range(3, 9):
+                    # this loop detects where Units: starts as
+                    # sometimes eqn could be split in several lines
+                    if re.findall("Units:", lines[unit_line]):
+                        break
+                if unit_line == 3:
+                    eqn = lines[2].replace("Original Eqn:", "").strip()
+                else:
+                    eqn = "; ".join(
+                        [line.strip() for line in lines[3:unit_line]]
+                    )
+
+                collector[varname] = {
+                    "Real Name": name,
+                    "Py Name": varname,
+                    "Eqn": eqn,
+                    "Unit": lines[unit_line].replace("Units:", "").strip(),
+                    "Lims": lines[unit_line + 1]
+                    .replace("Limits:", "")
+                    .strip(),
+                    "Type": lines[unit_line + 2].replace("Type:", "").strip(),
+                    "Subs": lines[unit_line + 3].replace("Subs:", "").strip(),
+                    "Comment": "\n".join(lines[(unit_line + 4) :]).strip(),
+                }
+
+            except Exception as exp:
+                logger.exception(
+                    f"Could not parse docstring of '{varname}' due to '{exp}'"
+                )
+                collector[varname] = {
+                    "Real Name": varname,
+                    "Py Name": varname,
+                    "Eqn": "???",
+                    "Unit": "???",
+                    "Lims": "???",
+                    "Type": "???",
+                    "Subs": "???",
+                    "Comment": "???",
+                }
+        return collector
 
     def _load_models(self):
         # Import pysd here only, because it takes much time to import it
@@ -134,6 +209,8 @@ class ModelManager(GameComponentManager):
             logger.debug(f"Model components {model.components}.")
             # cleans the cache of the components
             model.cache.clean()
+
+        self._model = model
 
     @property
     def fps(self):

@@ -177,7 +177,7 @@ class GameManager(GameComponentManager):
         return main_display
 
     # endregion
-
+    # region Loading
     def _load_game_content(self):
         logger.debug(f"[START] Loading {self.game.NAME}.")
         # This will load the settings
@@ -289,26 +289,6 @@ class GameManager(GameComponentManager):
         self.MODEL_MANAGER.connect()
         self.STATISTICS_MANAGER.connect()
 
-    def start_new_game(self, game: Tuple[Game, str]):
-        """Start a new game."""
-        pygame.init()
-        self.game = game
-
-        logger.info("Preparing the game components")
-        self.prepare()
-
-        logger.info("Connecting the game components")
-        self.connect()
-
-        logger.info("---Game Ready---")
-
-        logger.debug(self.MODEL_MANAGER)
-
-        # Start the simulator
-        self.MODEL_THREAD.start()
-        # Start the game
-        self.run_game_loop()
-
     @logger_enter_exit()
     def _loading_loop(self):
 
@@ -345,6 +325,28 @@ class GameManager(GameComponentManager):
 
         return self.MAIN_DISPLAY
 
+    # endregion Loading
+
+    def start_new_game(self, game: Tuple[Game, str]):
+        """Start a new game."""
+        pygame.init()
+        self.game = game
+
+        logger.info("Preparing the game components")
+        self.prepare()
+
+        logger.info("Connecting the game components")
+        self.connect()
+
+        logger.info("---Game Ready---")
+
+        logger.debug(self.MODEL_MANAGER)
+
+        # Start the simulator
+        self.MODEL_THREAD.start()
+        # Start the game
+        self.run_game_loop()
+
     def run_game_loop(self):
         """Main game loop.
 
@@ -372,16 +374,18 @@ class GameManager(GameComponentManager):
 
             # Handles the actions for pygame widgets
             self.UI_MANAGER.update(time_delta / 1000.0)
+            self.STATISTICS_MANAGER.UI_MANAGER.update(time_delta / 1000.0)
             self.MENU_OVERLAY.update(time_delta / 1000.0)
 
             self.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
+            self.STATISTICS_MANAGER.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
             self.MENU_OVERLAY.draw_ui(self.MAIN_DISPLAY)
 
             pygame.display.update()
 
     # region During Game
     def process_event(self, event: Event):
-        logger.debug(f"Processing {event}")
+        logger.info(f"Processing {event}")
         if event.type == pygame.QUIT:
             self.MODEL_MANAGER.pause()
             pygame.quit()
@@ -392,6 +396,7 @@ class GameManager(GameComponentManager):
         self.UI_MANAGER.process_events(event)
         self.MENU_OVERLAY.process_events(event)
         self.PLOTS_MANAGER.process_events(event)
+        self.STATISTICS_MANAGER.process_events(event)
 
     def _start_new_model_thread(self):
         """Start a new thread for the model.
@@ -410,16 +415,20 @@ class GameManager(GameComponentManager):
         )
         self.MODEL_THREAD.start()
 
+    def change_model_pause_state(self):
+        if self.MODEL_MANAGER.is_paused():
+            self._start_new_model_thread()
+        else:
+            self.MODEL_MANAGER.pause()
+        # Space set the game to pause or play
+
     def _process_textinput_event(self, event):
         logger.debug(f"Processing TextInput.text: {event.text}.")
         match event.text:
             case " ":
                 logger.debug(f"Found Space")
-                # Space set the game to pause or play
-                if self.MODEL_MANAGER.is_paused():
-                    self._start_new_model_thread()
-                else:
-                    self.MODEL_MANAGER.pause()
+
+                self.change_model_pause_state()
 
     # endregion During Game
     # region Setting Menu
@@ -428,6 +437,7 @@ class GameManager(GameComponentManager):
 
         This requires no computation from the model.
         """
+
         menu_manager = SettingsMenuManager(self)
         while True:
             self.fps_counter += 1
@@ -436,7 +446,7 @@ class GameManager(GameComponentManager):
             # Lood for quit events
             for event in events:
                 if event.type == pygame.QUIT:
-                    self.MODEL_MANAGER.pause()
+
                     pygame.quit()
                     sys.exit()
 

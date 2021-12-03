@@ -13,6 +13,7 @@ import pygame
 from pygame.event import Event
 
 from pysdgame import PYSDGAME_SETTINGS
+from pysdgame.statistics import StatisticsDisplayManager
 from pysdgame.utils import GameComponentManager
 from pysdgame.utils.directories import THEMES_DIR
 from pysdgame.utils.logging import logger
@@ -31,6 +32,7 @@ class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
     """Class that handles the menu of the game."""
 
     PLOTS_MANAGER: PlotsManager
+    STATISTICS_MANAGER: StatisticsDisplayManager
 
     def __init__(self, GAME_MANAGER: GameManager) -> None:
         """Initialize the Menu overlay of the game.
@@ -99,6 +101,7 @@ class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
 
     def connect(self):
         self.PLOTS_MANAGER = self.GAME_MANAGER.PLOTS_MANAGER
+        self.STATISTICS_MANAGER = self.GAME_MANAGER.STATISTICS_MANAGER
 
     def process_events(self, event: Event):
         handled = super().process_events(event)
@@ -113,15 +116,21 @@ class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
                 handled = True
             elif event.ui_object_id == "#open_menu_button":
                 # Will open the menu
+                self.GAME_MANAGER.MODEL_MANAGER.pause()
                 self.GAME_MANAGER.start_settings_menu_loop()
+
                 # When the menu is closed, this code continues here
                 handled = True
             elif event.ui_object_id == "#plots_button":
-                # Will open the menu
-                # TODO: decide how to handle new plots
+                # Add a new plot
                 self.PLOTS_MANAGER.add_graph()
-                # When the menu is closed, this code continues here
-                handled = True
+
+            elif event.ui_object_id == "#stats_button":
+                # Will show or hide the stats
+                if self.STATISTICS_MANAGER._hidden:
+                    self.STATISTICS_MANAGER.show()
+                else:
+                    self.STATISTICS_MANAGER.hide()
 
         return handled
 

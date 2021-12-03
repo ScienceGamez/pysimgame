@@ -107,7 +107,7 @@ class GameComponentManager(ABC):
         """
         return True
 
-    def listen(self, event: pygame.event.Event):
+    def process_events(self, event: pygame.event.Event):
         """Called for listening to the events."""
         pass
 
