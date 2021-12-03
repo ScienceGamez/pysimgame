@@ -6,7 +6,7 @@ import pathlib
 import sys
 import json
 import time
-import threading
+from threading import Thread
 from queue import Queue
 from functools import cached_property
 from typing import Any, Dict, Tuple
@@ -16,6 +16,8 @@ from pygame.event import Event
 import pygame.font
 import pygame_gui
 from pygame_gui.ui_manager import UIManager
+
+from pysdgame.statistics import StatisticsDisplayManager
 
 from .utils.pysdgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
 from .types import RegionsDict
@@ -91,6 +93,9 @@ class Game:
 
         with open(self._SETTINGS_FILE, "r") as f:
             settings = json.load(f)
+        # Check everything necessary is in settings, else add
+        if "Themes" not in settings:
+            settings["Themes"] = {}
         logger.info("Game Settings loaded.")
         logger.debug(f"Game Settings content: {settings}.")
         return settings
@@ -120,9 +125,10 @@ class GameManager(GameComponentManager):
     fps_counter: int = 0
     MODEL_MANAGER: ModelManager = None
     _is_loading: bool = False
-    _loading_screen_thread: threading.Thread
+    _loading_screen_thread: Thread
     UI_MANAGER: UIManager
     PLOTS_MANAGER: PlotsManager
+    STATISTICS_MANAGER: StatisticsDisplayManager
     # Stores the time
     CLOCK: pygame.time.Clock
 
@@ -154,6 +160,22 @@ class GameManager(GameComponentManager):
         self._game = game
         logger.info(f"New game set: '{self.game.NAME}'.")
 
+    @property
+    def MAIN_DISPLAY(self) -> pygame.Surface:
+        main_display = pygame.display.get_surface()
+        if main_display is None:
+            logger.debug("Creating a new display.")
+            # Create a new pygame window if we don't know where to render
+            main_display = pygame.display.set_mode(
+                # First check if they are some specific game settings available
+                self.game.SETTINGS.get(
+                    "Resolution",
+                    # Else check for PYSDGAME or set default
+                    PYSDGAME_SETTINGS.get("Resolution", (1080, 720)),
+                )
+            )
+        return main_display
+
     # endregion
 
     def _load_game_content(self):
@@ -165,9 +187,7 @@ class GameManager(GameComponentManager):
     @logger_enter_exit()
     def _create_display(self):
 
-        self._loading_screen_thread = threading.Thread(
-            target=self._loading_loop
-        )
+        self._loading_screen_thread = Thread(target=self._loading_loop)
         self._loading_screen_thread.start()
 
         # Set up a pygame_gui manager
@@ -198,19 +218,20 @@ class GameManager(GameComponentManager):
 
     def _start_model(self):
         logger.debug("[START] Starting the model")
-        # Set the queue for processing of the policies
-        self.policy_queue = Queue()
+
         # Create an instance managing the model
         self.MODEL_MANAGER = ModelManager(self)
-        self.MODEL_MANAGER.fps = self.game.SETTINGS.get("FPS", 1)
-        # Finds out all the policies available
-        # self.policies_dict = self.model._discover_policies()
-        self.model_thread = threading.Thread(target=self.MODEL_MANAGER.run)
+        self.MODEL_MANAGER.prepare()
 
-        # All possible unique policies
-        # self.policies = list(set(sum(self.policies_dict.values(), [])))
+        self.MODEL_THREAD = Thread(target=self.MODEL_MANAGER.run)
+
         logger.debug("[FINISHED] Starting the model")
         # await asyncio.sleep(1)
+        return
+
+    def _prepare_stats(self):
+        self.STATISTICS_MANAGER = StatisticsDisplayManager(self)
+        self.STATISTICS_MANAGER.prepare()
         return
 
     def prepare(self):
@@ -225,33 +246,37 @@ class GameManager(GameComponentManager):
         # (because the display will be cleared at end of thread)
         self.MAIN_DISPLAY
 
+        # Set the queue for processing of the policies
+        self.policy_queue = Queue()
+
         # We lauch threads here
         # At the moment it is not very efficient as all is loaded from
         # local ressource but in the future we might want to have some
         # networking processes to download some content.
 
-        p0 = threading.Thread(
-            target=self._start_model, name="Starting Model Manager"
-        )
+        p0 = Thread(target=self._start_model, name="Starting Model Manager")
         p0.start()
-        p1 = threading.Thread(
+        p1 = Thread(
             target=self._load_game_content, name="Game Content Loading"
         )
         p1.start()
-        p2 = threading.Thread(
+        display_thread = Thread(
             target=self._create_display, name="Creating Display"
         )
-        p2.start()
+        display_thread.start()
+        p3 = Thread(target=self._prepare_stats, name="Preparing Stats manager")
+        p3.start()
 
         # Wait each thread to finish
         p0.join()
         p1.join()
+        p3.join()
 
         # Loading is finished
         logger.debug(f"SETTING _is_loading {self._is_loading}")
         self._is_loading = False
         # Display thread is showing the loading screen
-        p2.join()
+        display_thread.join()
         logger.info(
             "[FINISHED] Prepare to start new game. "
             "Loading Time: {} sec.".format(time.time() - start_time)
@@ -262,6 +287,7 @@ class GameManager(GameComponentManager):
         self.PLOTS_MANAGER.connect()
         self.MENU_OVERLAY.connect()
         self.MODEL_MANAGER.connect()
+        self.STATISTICS_MANAGER.connect()
 
     def start_new_game(self, game: Tuple[Game, str]):
         """Start a new game."""
@@ -279,25 +305,9 @@ class GameManager(GameComponentManager):
         logger.debug(self.MODEL_MANAGER)
 
         # Start the simulator
-        self.model_thread.start()
+        self.MODEL_THREAD.start()
         # Start the game
         self.run_game_loop()
-
-    @property
-    def MAIN_DISPLAY(self) -> pygame.Surface:
-        main_display = pygame.display.get_surface()
-        if main_display is None:
-            logger.debug("Creating a new display.")
-            # Create a new pygame window if we don't know where to render
-            main_display = pygame.display.set_mode(
-                # First check if they are some specific game settings available
-                self.game.SETTINGS.get(
-                    "Resolution",
-                    # Else check for PYSDGAME or set default
-                    PYSDGAME_SETTINGS.get("Resolution", (1080, 720)),
-                )
-            )
-        return main_display
 
     @logger_enter_exit()
     def _loading_loop(self):
@@ -335,19 +345,6 @@ class GameManager(GameComponentManager):
 
         return self.MAIN_DISPLAY
 
-    def process_event(self, event: Event):
-        logger.debug(f"Processing {event}")
-        if event.type == pygame.QUIT:
-            self.MODEL_MANAGER.pause()
-            pygame.quit()
-            sys.exit()
-        elif event.type == pygame.TEXTINPUT:
-            self._process_textinput_event(event)
-
-        self.UI_MANAGER.process_events(event)
-        self.MENU_OVERLAY.process_events(event)
-        self.PLOTS_MANAGER.process_events(event)
-
     def run_game_loop(self):
         """Main game loop.
 
@@ -382,18 +379,36 @@ class GameManager(GameComponentManager):
 
             pygame.display.update()
 
+    # region During Game
+    def process_event(self, event: Event):
+        logger.debug(f"Processing {event}")
+        if event.type == pygame.QUIT:
+            self.MODEL_MANAGER.pause()
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.TEXTINPUT:
+            self._process_textinput_event(event)
+
+        self.UI_MANAGER.process_events(event)
+        self.MENU_OVERLAY.process_events(event)
+        self.PLOTS_MANAGER.process_events(event)
+
     def _start_new_model_thread(self):
+        """Start a new thread for the model.
+
+        Used mainly after pausing for restarting.
+        """
         # Ensure the thread has ended before restarting
-        if self.model_thread.is_alive():
-            logger.warn(f"{self.model_thread} is still running.")
+        if self.MODEL_THREAD.is_alive():
+            logger.warn(f"{self.MODEL_THREAD} is still running.")
             return
-        self.model_thread.join()
-        self.model_thread = threading.Thread(
+        self.MODEL_THREAD.join()
+        self.MODEL_THREAD = Thread(
             target=self.MODEL_MANAGER.run,
             # Make it a deamon so it stops when the main thread raises error
             daemon=True,
         )
-        self.model_thread.start()
+        self.MODEL_THREAD.start()
 
     def _process_textinput_event(self, event):
         logger.debug(f"Processing TextInput.text: {event.text}.")
@@ -406,6 +421,8 @@ class GameManager(GameComponentManager):
                 else:
                     self.MODEL_MANAGER.pause()
 
+    # endregion During Game
+    # region Setting Menu
     def start_settings_menu_loop(self):
         """Open the settings menu.
 
@@ -432,3 +449,5 @@ class GameManager(GameComponentManager):
             menu_manager.draw_ui(self.MAIN_DISPLAY)
 
             pygame.display.update()
+
+    # endregion Setting Menu

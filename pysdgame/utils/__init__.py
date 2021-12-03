@@ -1,9 +1,13 @@
 """Utility module."""
 from __future__ import annotations
+from functools import wraps
 
 import logging
-from typing import TYPE_CHECKING, Tuple
+import threading
+from typing import TYPE_CHECKING, Callable, Tuple
 from abc import ABC, abstractmethod
+
+import pygame
 
 
 if TYPE_CHECKING:
@@ -92,3 +96,44 @@ class GameComponentManager(ABC):
         This will be called on the main thread.
         """
         return NotImplemented
+
+    def update(self) -> bool:
+        """Update the manager.
+
+        Meant to be called when something in the manager is updating.
+        Other manager should listen to this so they receive the update.
+
+        :return: True if the managers needed an update else false.
+        """
+        return True
+
+    def listen(self, event: pygame.event.Event):
+        """Called for listening to the events."""
+        pass
+
+    def listen_to_update(
+        self,
+        manager: GameComponentManager,
+        method: Callable,
+        threaded: bool = False,
+    ) -> None:
+        """Add a listener for the update of a certain manager.
+
+        The method specified will be called after the manager has done
+        an update of something internally (update() returns True).
+
+        :param manager: The manager to be listened.
+        :param method: The method to be called after the update.
+        :param threaded: Whether to call the method on a separated thread.
+        """
+        old_update = manager.update
+
+        @wraps(manager.update)
+        def listened_update():
+            if old_update():
+                if threaded:
+                    threading.Thread(target=method).start()
+                else:
+                    method()
+
+        manager.update = listened_update

@@ -18,6 +18,7 @@ import pygame
 
 
 from pysdgame.regions_display import RegionComponent
+from pysdgame.utils import GameComponentManager
 
 from .utils.logging import logger, logger_enter_exit
 
@@ -44,7 +45,7 @@ class Policy:
     region: RegionComponent
 
 
-class ModelManager:
+class ModelManager(GameComponentManager):
     """Model used to manage the pysd model-s in the simulation.
 
     Works like a dictionary for the different regions, mapping
@@ -57,37 +58,69 @@ class ModelManager:
     PLOTS_MANAGER: PlotsManager
 
     _elements_names: List[str] = None  # Used to internally store elements
-    models: List[pysd.statefuls.Model]
+    capture_elements: List[str]
+    models: Dict[str, pysd.statefuls.Model]
     time_step: float
     clock: pygame.time.Clock
     fps: float
 
-    def __init__(
-        self,
-        GAME_MANAGER: GameManager,
-        capture_elements: List[str] = None,
-    ) -> None:
-        """Create a model manager.
+    def __init__(self, GAME_MANAGER: GameManager) -> None:
+        super().__init__(GAME_MANAGER)
 
-        Attributes:
-            regions: name of the simuualtion regions
-            capture_elements: The elements that will be returned by
-                :py:meth:`get_current_data`. If None, will return all
-                what is available.
-        """
+    def prepare(self):
+
+        self.GAME_MANAGER = self.GAME_MANAGER
+        self._load_models()
+        # Set the captured_elements
+        self.capture_elements = None
+
+        # Create the time managers
+        self.clock = pygame.time.Clock()
+        model = list(self.models.values())[0]  # Get the first model
+        logger.debug(f"initial_time {model.components.initial_time()}.")
+        logger.debug(f"time_step {model.components.time_step()}.")
+        logger.debug(f"final_time {model.components.final_time()}.")
+
+        self.time_axis = []
+        self.current_time = model.time()
+        self.current_step = int(0)
+        self.time_step = model.components.time_step()
+
+        self.fps = self.GAME.SETTINGS.get("FPS", 1)
+
+        regions = self.GAME_MANAGER.game.REGIONS_DICT.keys()
+        # Create a df to store the output
+        index = pd.MultiIndex.from_product(
+            [regions, self.capture_elements],
+            names=["regions", "elements"],
+        )
+        logger.debug(f"Created Index {index}")
+        self.outputs = pd.DataFrame(columns=index)
+        # Sort the indexes for performance
+        self.outputs.sort_index()
+
+        # Finds out all the policies available
+        # All possible unique policies
+        # self.policies = list(set(sum(self.policies_dict.values(), [])))
+        self.policies_dict = self._discover_policies()
+
+        # Saves the starting state
+        self._save_current_elements()
+
+    def _load_models(self):
         # Import pysd here only, because it takes much time to import it
+        # and is not used everywhere
         import pysd
 
-        self.GAME_MANAGER = GAME_MANAGER
-        regions = GAME_MANAGER.game.REGIONS_DICT.keys()
+        regions = self.GAME_MANAGER.game.REGIONS_DICT.keys()
         self.models = {
-            region: pysd.load(GAME_MANAGER.game.PYSD_MODEL_FILE)
+            region: pysd.load(self.GAME_MANAGER.game.PYSD_MODEL_FILE)
             for region in regions
         }
 
         logger.info(
             "Created {} from file {}".format(
-                self.models, GAME_MANAGER.game.PYSD_MODEL_FILE
+                self.models, self.GAME_MANAGER.game.PYSD_MODEL_FILE
             )
         )
         model: pysd.statefuls.Model
@@ -101,32 +134,6 @@ class ModelManager:
             logger.debug(f"Model components {model.components}.")
             # cleans the cache of the components
             model.cache.clean()
-
-        self.clock = pygame.time.Clock()
-        # Create the time managers
-        logger.debug(f"initial_time {model.components.initial_time()}.")
-        logger.debug(f"time_step {model.components.time_step()}.")
-        logger.debug(f"final_time {model.components.final_time()}.")
-
-        self.time_axis = []
-        self.current_time = model.time()
-        self.current_step = int(0)
-        self.time_step = model.components.time_step()
-
-        self.capture_elements = capture_elements
-
-        # Create a df to store the output
-        index = pd.MultiIndex.from_product(
-            [regions, self.capture_elements],
-            names=["regions", "elements"],
-        )
-        logger.debug(f"Created Index {index}")
-        self.outputs = pd.DataFrame(columns=index)
-        # Sort the indexes for performance
-        self.outputs.sort_index()
-
-        # Saves the starting state
-        self._save_current_elements()
 
     @property
     def fps(self):
@@ -283,11 +290,17 @@ class ModelManager:
             model.clean_caches()
         # Saves right after the iteration
         self._save_current_elements()
+        self.update()
+
+    def update(self) -> bool:
+        """Each time the update is called is after a step."""
         # Updates the plots, now that the step was done
         # TODO: check if not joining here will lead to an issue
         threading.Thread(
             target=self.PLOTS_MANAGER.update, name="Plot Update"
         ).start()
+        # Return true, as only called in step
+        return True
 
     def pause(self):
         """Set the model to pause.
