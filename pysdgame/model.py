@@ -67,52 +67,7 @@ class ModelManager(GameComponentManager):
     fps: float
     doc: pd.DataFrame
 
-    def __init__(self, GAME_MANAGER: GameManager) -> None:
-        super().__init__(GAME_MANAGER)
-
-    def prepare(self):
-
-        self.GAME_MANAGER = self.GAME_MANAGER
-        self._load_models()
-        # Set the captured_elements
-        self.capture_elements = None
-
-        # Create the time managers
-        self.clock = pygame.time.Clock()
-
-        logger.debug(f"initial_time {self._model.components.initial_time()}.")
-        logger.debug(f"time_step {self._model.components.time_step()}.")
-        logger.debug(f"final_time {self._model.components.final_time()}.")
-
-        self.time_axis = []
-        self.current_time = self._model.time()
-        self.current_step = int(0)
-        self.time_step = self._model.components.time_step()
-
-        self.fps = self.GAME.SETTINGS.get("FPS", 1)
-
-        regions = self.GAME_MANAGER.game.REGIONS_DICT.keys()
-        # Create a df to store the output
-        index = pd.MultiIndex.from_product(
-            [regions, self.capture_elements],
-            names=["regions", "elements"],
-        )
-        logger.debug(f"Created Index {index}")
-        self.outputs = pd.DataFrame(columns=index)
-        # Sort the indexes for performance
-        self.outputs.sort_index()
-
-        # Finds out all the policies available
-        # All possible unique policies
-        # self.policies = list(set(sum(self.policies_dict.values(), [])))
-        self.policies_dict = self._discover_policies()
-
-        # Saves the starting state
-        self._save_current_elements()
-
-        self.doc
-        logger.info(f"Doc: {self.doc}")
-
+    # region Properties
     @cached_property
     def doc(self) -> Dict[str, Dict[str, str]]:
         """Return the documentation of each component.
@@ -180,37 +135,8 @@ class ModelManager(GameComponentManager):
                     "Subs": "???",
                     "Comment": "???",
                 }
+        logger.debug(f"Doc: {collector}")
         return collector
-
-    def _load_models(self):
-        # Import pysd here only, because it takes much time to import it
-        # and is not used everywhere
-        import pysd
-
-        regions = self.GAME_MANAGER.game.REGIONS_DICT.keys()
-        self.models = {
-            region: pysd.load(self.GAME_MANAGER.game.PYSD_MODEL_FILE)
-            for region in regions
-        }
-
-        logger.info(
-            "Created {} from file {}".format(
-                self.models, self.GAME_MANAGER.game.PYSD_MODEL_FILE
-            )
-        )
-        model: pysd.statefuls.Model
-        # Initialize each model
-        for model in self.models.values():
-            # Can set initial conditions to the model variables
-            model.set_initial_condition("original")
-
-            # Set the model in run phase
-            model.time.stage = "Run"
-            logger.debug(f"Model components {model.components}.")
-            # cleans the cache of the components
-            model.cache.clean()
-
-        self._model = model
 
     @property
     def fps(self):
@@ -253,9 +179,79 @@ class ModelManager(GameComponentManager):
     def __getitem__(self, key):
         return self.models[key]
 
-    def time(self):
-        """Return the current time."""
-        raise NotImplementedError("Should be pointing to the submodel time.")
+    # endregion Properties
+    # region Prepare
+    def prepare(self):
+
+        self.GAME_MANAGER = self.GAME_MANAGER
+        self._load_models()
+        # Set the captured_elements
+        self.capture_elements = None
+
+        # Create the time managers
+        self.clock = pygame.time.Clock()
+
+        logger.debug(f"initial_time {self._model.components.initial_time()}.")
+        logger.debug(f"time_step {self._model.components.time_step()}.")
+        logger.debug(f"final_time {self._model.components.final_time()}.")
+
+        self.time_axis = []
+        self.current_time = self._model.time()
+        self.current_step = int(0)
+        self.time_step = self._model.components.time_step()
+
+        self.fps = self.GAME.SETTINGS.get("FPS", 1)
+
+        regions = self.GAME_MANAGER.game.REGIONS_DICT.keys()
+        # Create a df to store the output
+        index = pd.MultiIndex.from_product(
+            [regions, self.capture_elements],
+            names=["regions", "elements"],
+        )
+        logger.debug(f"Created Index {index}")
+        self.outputs = pd.DataFrame(columns=index)
+        # Sort the indexes for performance
+        self.outputs.sort_index()
+
+        # Finds out all the policies available
+        # All possible unique policies
+        # self.policies = list(set(sum(self.policies_dict.values(), [])))
+        self.policies_dict = self._discover_policies()
+
+        # Saves the starting state
+        self._save_current_elements()
+
+        self.doc
+
+    def _load_models(self):
+        # Import pysd here only, because it takes much time to import it
+        # and is not used everywhere
+        import pysd
+
+        regions = self.GAME_MANAGER.game.REGIONS_DICT.keys()
+        self.models = {
+            region: pysd.load(self.GAME_MANAGER.game.PYSD_MODEL_FILE)
+            for region in regions
+        }
+
+        logger.info(
+            "Created {} from file {}".format(
+                self.models, self.GAME_MANAGER.game.PYSD_MODEL_FILE
+            )
+        )
+        model: pysd.statefuls.Model
+        # Initialize each model
+        for model in self.models.values():
+            # Can set initial conditions to the model variables
+            model.set_initial_condition("original")
+
+            # Set the model in run phase
+            model.time.stage = "Run"
+            logger.debug(f"Model components {model.components}.")
+            # cleans the cache of the components
+            model.cache.clean()
+
+        self._model = model
 
     def _discover_policies(self) -> POLICY_DICT:
         """Return a dictionary of the following structure.
@@ -302,6 +298,9 @@ class ModelManager(GameComponentManager):
         """
         self.PLOTS_MANAGER = self.GAME_MANAGER.PLOTS_MANAGER
 
+    # endregion Prepare
+
+    # region Policies
     @logger_enter_exit()
     def apply_policies(self):
         """Apply the requested policies to all the requested regions."""
@@ -325,6 +324,8 @@ class ModelManager(GameComponentManager):
         old_method = getattr(model.components, method_name)
         setattr(model.components, method_name, new_method)
 
+    # endregion Policies
+
     def read_filepath(self) -> str:
         """Read a user given filepath and return it if exists."""
         filepath = input("Enter filepath of the PySD model you want to use : ")
@@ -336,16 +337,7 @@ class ModelManager(GameComponentManager):
             print("Try again.")
             return self.read_filepath()
 
-    @logger_enter_exit(ignore_exit=True)
-    def _save_current_elements(self):
-        for region, model in self.models.items():
-            self.outputs.at[model.time(), region] = [
-                getattr(model.components, key)()
-                for key in self.capture_elements
-            ]
-        # Also save the time
-        self.time_axis.append(self.current_time)
-
+    # region Run
     @logger_enter_exit(ignore_exit=True)
     def step(self):
         """Step of the global model.
@@ -368,6 +360,16 @@ class ModelManager(GameComponentManager):
         # Saves right after the iteration
         self._save_current_elements()
         self.update()
+
+    @logger_enter_exit(ignore_exit=True)
+    def _save_current_elements(self):
+        for region, model in self.models.items():
+            self.outputs.at[model.time(), region] = [
+                getattr(model.components, key)()
+                for key in self.capture_elements
+            ]
+        # Also save the time
+        self.time_axis.append(self.current_time)
 
     def update(self) -> bool:
         """Each time the update is called is after a step."""
@@ -410,3 +412,5 @@ class ModelManager(GameComponentManager):
             logger.info(
                 f"Model step executed in {ms_step} ms, ticked {ms} ms."
             )
+
+    # endregion Run

@@ -3,25 +3,32 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple, Union
 import warnings
 import pygame
 from pygame import Rect, Surface, draw, mouse
+from pygame.event import Event
 import numpy as np
 
 from typing import TYPE_CHECKING
+from main import REGIONS_DICT
+from pysdgame.types import RegionsDict
 
-from pysdgame.utils import HINT_DISPLAY
+from pysdgame.utils import HINT_DISPLAY, GameComponentManager
 from pysdgame.utils.directories import (
     BACKGROUND_DIR_NAME,
     ORIGINAL_BACKGROUND_FILESTEM,
 )
 from .utils.logging import logger
+from pysdgame.utils import logging
 
 if TYPE_CHECKING:
     from .game_manager import GameManager
 
 _REGION_COUNTER = 0
+
+# Special event type: attr: {}
+REGION_SELECTED_EVENT = pygame.event.custom_type()
 
 
 class RegionComponent:
@@ -58,8 +65,6 @@ class RegionComponent:
             else polygons_points
         )
 
-        self.show()
-
         if name is None:
             # Attributes a default name
             global _REGION_COUNTER
@@ -67,6 +72,7 @@ class RegionComponent:
             _REGION_COUNTER += 1
 
         self.name = name
+        logger.debug(f"Created Region Component {self}")
 
     def __repr__(self) -> str:
         return "-".join((self.name, str(self.color)))
@@ -82,7 +88,7 @@ class RegionComponent:
             "polygons": self.polygons,
         }
 
-    def from_dict(self, region_dict: Dict[str, Any]) -> RegionComponent:
+    def from_dict(region_dict: Dict[str, Any]) -> RegionComponent:
         return RegionComponent(
             None,  # surface will need to be attributed later
             pygame.Color(*region_dict["color"]),
@@ -234,34 +240,30 @@ class SingleRegionComponent(RegionComponent):
         super().__init__(None, color=pygame.Color(255, 255, 255), name="")
 
 
-class RegionsSurface(pygame.Surface):
+class RegionsManager(GameComponentManager):
     """A view of the earth map."""
 
-    region_components: Dict[str, RegionComponent] = {}
-    region_surface: Surface
-
+    selected_region: RegionComponent
+    REGION_SURFACE: Surface
+    BACKGROUND_SURFACE: Surface
     HAS_NO_BACKGROUND: bool = False
+    REGIONS_DICT: RegionsDict
 
-    _previous_hovered: str = None
+    _previous_hovered: RegionComponent
+    _hovered_region: RegionComponent
+    _anchor: Tuple[float, float]  # Position of region surface on MAIN_DISPLAY
 
-    def __init__(
-        self,
-        GAME_MANAGER: GameManager,
-        *args,
-        **kwargs,
-    ) -> None:
-        """Initialize the regions surface.
-
-        Same args as pygame.Surface().
-        """
-        super().__init__(GAME_MANAGER.MAIN_DISPLAY.get_size(), *args, **kwargs)
-        self.GAME_MANAGER = GAME_MANAGER
+    def prepare(self):
+        self.REGIONS_DICT = self.GAME.REGIONS_DICT
+        display_size = self.GAME_MANAGER.MAIN_DISPLAY.get_size()
+        # Region surface is transparent over the background
+        self.REGION_SURFACE = Surface(display_size, flags=pygame.SRCALPHA)
+        self.REGION_SURFACE.fill(pygame.Color(0, 0, 0, 0))
 
         self.load_background_image()
+        # Simply point to the game dict
 
-        if len(GAME_MANAGER.game.REGIONS_DICT) > 1:
-            # Set up the manager for multiple regions
-            self.load_regions()
+        if len(self.REGIONS_DICT) > 1:
 
             self._previous_pressed = False
             self._selected_region_str = None
@@ -276,37 +278,32 @@ class RegionsSurface(pygame.Surface):
             setattr(self, "listen", do_nothing)
 
     @property
-    def selected_region(self):
+    def selected_region(self) -> RegionComponent:
         """Return the :py:class:`RegionComponent` currently selected."""
-        return self.region_components[self._selected_region_str]
+        return self.REGIONS_DICT[self._selected_region_str]
 
     @selected_region.setter
-    def selected_region(self, selected):
+    def selected_region(self, selected: Union[str, RegionComponent, None]):
         if selected is None:
             self._selected_region_str = None
         elif isinstance(selected, str):
-            if selected in self.region_components:
+            if selected in self.REGIONS_DICT:
                 # Unshow the previously selected
                 self._selected_region_str = selected
             else:
                 raise KeyError(
                     "{} not in available regions: {}.".format(
-                        selected, self.region_components.keys()
+                        selected, self.REGIONS_DICT.keys()
                     )
                 )
+        elif isinstance(selected, RegionComponent):
+            self.selected_region = selected.name
         else:
             raise ValueError(
                 "Cannot assign selected_region with type {}.".format(
                     type(selected)
                 )
             )
-
-    def on_region_selected(self, region: RegionComponent) -> None:
-        """Called when a region is selected.
-
-        Can be overriden to do any thing particular.
-        """
-        pass
 
     def load_background_image(self):
         """Load the background image if it exists.
@@ -346,50 +343,11 @@ class RegionsSurface(pygame.Surface):
                 # As no background image file was given
                 return
         # Add the background on screen
-        self.background_image = pygame.image.load(img_path)
-        self.blit(self.background_image, (0, 0))
-        logger.info(f"Loaded background {self.background_image}")
+        self.BACKGROUND_SURFACE = pygame.image.load(img_path)
 
-    def load_regions(self):
-        """Load the regions polygons.
+        logger.info(f"Loaded background {self.BACKGROUND_SURFACE}")
 
-        At the moment only load available regions but future implementation
-        could read from official geo data maps and show regions as requested
-        by the models.
-        """
-        regions_dir = os.path.join(self.GAME_MANAGER.GAME_DIR, "regions")
-        if not os.path.isdir(regions_dir):
-            os.mkdir(regions_dir)
-        # TODO: change that to get the default resolution from the regions folder
-        regions_resolution = self.GAME_MANAGER
-        regions_files = [
-            os.path.join(regions_dir, file) for file in os.listdir(regions_dir)
-        ]
-        self.region_surface = pygame.Surface(self.get_size(), pygame.SRCALPHA)
-        # Makes a transparent background of the surface
-        transparent = (255, 255, 255, 0)
-        self.region_surface.fill(transparent)
-        for file in regions_files:
-            x, y = np.loadtxt(file, delimiter=",", unpack=True)
-            # Rescales
-            x = x / regions_resolution[0] * self.get_size()[0]
-            y = y / regions_resolution[1] * self.get_size()[1]
-
-            region_component = RegionComponent(
-                self.region_surface,
-                np.random.randint(0, 256, size=3),
-                [(x_, y_) for x_, y_ in zip(x, y)],
-            )
-            # Stores each regions in a dictionary
-            self.region_components[region_component.name] = region_component
-
-        # Adds a None region
-        self.region_components[None] = IlluminatisHQ(
-            self.region_surface,
-        )
-        self.blit(self.region_surface, (0, 0))
-
-    def listen(self, events) -> bool:
+    def listen(self, event: pygame.event.Event) -> bool:
         """Listen the events concerning the earth surface.
 
         The earth view surface listens for the following:
@@ -401,14 +359,26 @@ class RegionsSurface(pygame.Surface):
 
 
         """
-        logger.debug(f"[START] Listening : {events}")
-        if not self.get_rect().collidepoint(mouse.get_pos()):
+        logger.debug(f"[START] Listening : {event}")
+
+        logger.debug(f"[FINISHED] Listening : {event}")
+
+        return True
+
+    def _listen_mouse_events(self) -> bool:
+        """Listen to mouse clicks and movement.
+
+        When a region is clicked, it should become the selected region.
+        Throw a :var:`REGION_SELECTED_EVENT` when a region is selected.
+
+        :return: True if something should change in the display.
+        """
+        if not self.REGION_SURFACE.get_rect().collidepoint(mouse.get_pos()):
             return False
         # Finds on which region is the mouse
-        hovered = None
-        for name, region_component in self.region_components.items():
+        for region_component in self.REGIONS_DICT.values():
             if region_component.collidepoint(mouse.get_pos()):
-                hovered = name
+                self._hovered_region = region_component
         # handles clicked event
         pressed = mouse.get_pressed()[0]
         clicked = not pressed and self._previous_pressed
@@ -416,27 +386,33 @@ class RegionsSurface(pygame.Surface):
 
         if clicked:
             # Select the clicked region
-            self.selected_region = hovered
-            self.on_region_selected(self.selected_region)
+            self.selected_region = self._hovered_region
+            event = Event(
+                REGION_SELECTED_EVENT, {"region": self.selected_region}
+            )
+            logger.info(f"Selected Region {self.selected_region.name}")
+            pygame.event.post(event)
 
-        if self._previous_hovered == hovered:
+        if self._previous_hovered == self._hovered_region:
             return False
 
         # New region is hover
-        self._previous_hovered = hovered
-        # Show, the regions on the map
-        self.region_surface.fill((250, 250, 250, 0))
-        for name, region_component in self.region_components.items():
-            if name == hovered:
-                region_component.show_hovered()
-            elif name == self.selected_region.name:
-                region_component.show_selected()
-            else:
-                region_component.show_idle()
-
-        self.blit(self.earth_map_img, (0, 0))
-        self.blit(self.region_surface, (0, 0))
-
-        logger.debug(f"[FINISHED] Listening : {events}")
-
+        self._previous_hovered = self._hovered_region
         return True
+
+    def update(self) -> bool:
+        if not self._listen_mouse_events():
+            return False
+        # Show, the regions on the map
+        self.REGION_SURFACE.fill((250, 250, 250, 0))
+        for region in self.REGIONS_DICT.values():
+            if region == self._hovered_region:
+                region.show_hovered()
+            elif region == self.selected_region:
+                region.show_selected()
+            else:
+                region.show_idle()
+        self.GAME_MANAGER.MAIN_DISPLAY.blit(
+            self.BACKGROUND_SURFACE, self._anchor
+        )
+        self.GAME_MANAGER.MAIN_DISPLAY.blit(self.REGION_SURFACE, self._anchor)

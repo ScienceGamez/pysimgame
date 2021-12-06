@@ -454,8 +454,10 @@ def start_newgame_loop() -> None:
                         CLOSE_BUTTON.hide()
                         start_button.hide()
                         del start_button
-                        GameManager.start_new_game(_selected_game)
+                        game_manager = GameManager()
+                        game_manager.start_new_game(_selected_game)
                         logging.debug("game finished, returning to menu")
+                        del game_manager
                         return
                     if (
                         event.ui_object_id
