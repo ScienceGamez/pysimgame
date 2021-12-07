@@ -11,8 +11,7 @@ from pygame.event import Event
 import numpy as np
 
 from typing import TYPE_CHECKING
-from main import REGIONS_DICT
-from pysdgame.types import RegionsDict
+
 
 from pysdgame.utils import HINT_DISPLAY, GameComponentManager
 from pysdgame.utils.directories import (
@@ -24,11 +23,18 @@ from pysdgame.utils import logging
 
 if TYPE_CHECKING:
     from .game_manager import GameManager
+    from .types import RegionsDict
 
 _REGION_COUNTER = 0
 
 # Special event type: attr: {}
 REGION_SELECTED_EVENT = pygame.event.custom_type()
+
+
+def post_even_region_selected(region: RegionComponent) -> None:
+    """Post an event of selection of a Region."""
+    event = Event(REGION_SELECTED_EVENT, {"region": region})
+    pygame.event.post(event)
 
 
 class RegionComponent:
@@ -75,7 +81,7 @@ class RegionComponent:
         logger.debug(f"Created Region Component {self}")
 
     def __repr__(self) -> str:
-        return "-".join((self.name, str(self.color)))
+        return "-".join(("Region", self.name))
 
     def to_dict(self) -> dict:
         """Return a dictionary representation of the region.
@@ -106,35 +112,43 @@ class RegionComponent:
     def show_hovered(self):
         """Make the region glow when hovered."""
         for coords in self.polygons:
-            draw.polygon(
-                self.surface,
-                (*self.color, 150),
-                [(coord[0], coord[1]) for coord in coords],
+            self._rectangles.append(
+                draw.polygon(
+                    self.surface,
+                    self.color,
+                    [(coord[0], coord[1]) for coord in coords],
+                )
             )
 
     def show_selected(self):
         """Show the style of selected region."""
         for coords in self.polygons:
-            draw.lines(
-                self.surface,
-                (*self.color, 250),
-                True,
-                [(coord[0], coord[1]) for coord in coords],
-                width=10,
+            self._rectangles.append(
+                draw.lines(
+                    self.surface,
+                    self.color,
+                    True,
+                    [(coord[0], coord[1]) for coord in coords],
+                    width=10,
+                )
             )
-            draw.polygon(
-                self.surface,
-                (*self.color, 200),
-                [(coord[0], coord[1]) for coord in coords],
+            self._rectangles.append(
+                draw.polygon(
+                    self.surface,
+                    self.color,
+                    [(coord[0], coord[1]) for coord in coords],
+                )
             )
 
     def show_idle(self):
         """Shows the map on the surface."""
         for coords in self.polygons:
-            draw.polygon(
-                self.surface,
-                (*self.color, 100),
-                [(coord[0], coord[1]) for coord in coords],
+            self._rectangles.append(
+                draw.polygon(
+                    self.surface,
+                    self.color,
+                    [(coord[0], coord[1]) for coord in coords],
+                )
             )
 
     def show(self):
@@ -251,7 +265,8 @@ class RegionsManager(GameComponentManager):
 
     _previous_hovered: RegionComponent
     _hovered_region: RegionComponent
-    _anchor: Tuple[float, float]  # Position of region surface on MAIN_DISPLAY
+    # Position of region surface on MAIN_DISPLAY
+    _anchor: Tuple[float, float] = (0, 0)
 
     def prepare(self):
         self.REGIONS_DICT = self.GAME.REGIONS_DICT
@@ -259,9 +274,14 @@ class RegionsManager(GameComponentManager):
         # Region surface is transparent over the background
         self.REGION_SURFACE = Surface(display_size, flags=pygame.SRCALPHA)
         self.REGION_SURFACE.fill(pygame.Color(0, 0, 0, 0))
+        for region in self.REGIONS_DICT.values():
+            region.surface = self.REGION_SURFACE
 
         self.load_background_image()
         # Simply point to the game dict
+
+        self._previous_hovered = None
+        self._hovered_region = None
 
         if len(self.REGIONS_DICT) > 1:
 
@@ -277,10 +297,18 @@ class RegionsManager(GameComponentManager):
             # Changes the manager so that it does not handle regions
             setattr(self, "listen", do_nothing)
 
+        self._update_regions_surface()
+
+    def connect(self):
+        pass
+
     @property
-    def selected_region(self) -> RegionComponent:
+    def selected_region(self) -> Union[RegionComponent, None]:
         """Return the :py:class:`RegionComponent` currently selected."""
-        return self.REGIONS_DICT[self._selected_region_str]
+        if self._selected_region_str is None:
+            return None
+        else:
+            return self.REGIONS_DICT[self._selected_region_str]
 
     @selected_region.setter
     def selected_region(self, selected: Union[str, RegionComponent, None]):
@@ -341,9 +369,11 @@ class RegionsManager(GameComponentManager):
                     )
                 )
                 # As no background image file was given
+                self.HAS_NO_BACKGROUND = True
                 return
         # Add the background on screen
         self.BACKGROUND_SURFACE = pygame.image.load(img_path)
+        self.HAS_NO_BACKGROUND = False
 
         logger.info(f"Loaded background {self.BACKGROUND_SURFACE}")
 
@@ -375,35 +405,47 @@ class RegionsManager(GameComponentManager):
         """
         if not self.REGION_SURFACE.get_rect().collidepoint(mouse.get_pos()):
             return False
+        hovered_region = None
         # Finds on which region is the mouse
         for region_component in self.REGIONS_DICT.values():
             if region_component.collidepoint(mouse.get_pos()):
-                self._hovered_region = region_component
+                hovered_region = region_component
         # handles clicked event
         pressed = mouse.get_pressed()[0]
         clicked = not pressed and self._previous_pressed
         self._previous_pressed = pressed
+        logger.debug(f"hovered {hovered_region}")
 
         if clicked:
             # Select the clicked region
-            self.selected_region = self._hovered_region
+            self.selected_region = hovered_region
             event = Event(
                 REGION_SELECTED_EVENT, {"region": self.selected_region}
             )
-            logger.info(f"Selected Region {self.selected_region.name}")
             pygame.event.post(event)
+            logger.info(f"Selected Region {self.selected_region}")
 
-        if self._previous_hovered == self._hovered_region:
+        if self._previous_hovered == hovered_region:
             return False
 
         # New region is hover
-        self._previous_hovered = self._hovered_region
+        self._previous_hovered = hovered_region
         return True
 
     def update(self) -> bool:
-        if not self._listen_mouse_events():
-            return False
-        # Show, the regions on the map
+        update_regions = self._listen_mouse_events()
+        if update_regions:
+            self._update_regions_surface()
+        if not self.HAS_NO_BACKGROUND:
+            # Blit the background if there is one
+            self.GAME_MANAGER.MAIN_DISPLAY.blit(
+                self.BACKGROUND_SURFACE, self._anchor
+            )
+        self.GAME_MANAGER.MAIN_DISPLAY.blit(self.REGION_SURFACE, self._anchor)
+        return True
+
+    def _update_regions_surface(self):
+        # Re-draw the regions on the map
         self.REGION_SURFACE.fill((250, 250, 250, 0))
         for region in self.REGIONS_DICT.values():
             if region == self._hovered_region:
@@ -412,7 +454,3 @@ class RegionsManager(GameComponentManager):
                 region.show_selected()
             else:
                 region.show_idle()
-        self.GAME_MANAGER.MAIN_DISPLAY.blit(
-            self.BACKGROUND_SURFACE, self._anchor
-        )
-        self.GAME_MANAGER.MAIN_DISPLAY.blit(self.REGION_SURFACE, self._anchor)

@@ -122,7 +122,7 @@ class ModelManager(GameComponentManager):
                 }
 
             except Exception as exp:
-                logger.exception(
+                logger.warning(
                     f"Could not parse docstring of '{varname}' due to '{exp}'"
                 )
                 collector[varname] = {

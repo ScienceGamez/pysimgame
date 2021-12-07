@@ -26,8 +26,8 @@ from .utils import GameComponentManager, recursive_dict_missing_values
 from .plots import PlotsManager
 from .regions_display import (
     RegionComponent,
-    RegionsSurface,
     SingleRegionComponent,
+    RegionsManager,
 )
 from .model import ModelManager, Policy
 from .utils.logging import logger, logger_enter_exit
@@ -201,7 +201,8 @@ class GameManager(GameComponentManager):
         self._loading_screen_thread.join()
 
     def _prepare_regions_display(self):
-        self.REGIONS_DISPLAY = RegionsSurface(self)
+        self.REGIONS_MANAGER = RegionsManager(self)
+        self.REGIONS_MANAGER.prepare()
 
     def _prepare_menu_displays(self):
         """Set up the menu displayer of the game.
@@ -264,6 +265,7 @@ class GameManager(GameComponentManager):
             target=self._create_display, name="Creating Display"
         )
         display_thread.start()
+
         p3 = Thread(target=self._prepare_stats, name="Preparing Stats manager")
         p3.start()
 
@@ -369,8 +371,8 @@ class GameManager(GameComponentManager):
             for event in events:
                 self.process_event(event)
 
-            blit = self.REGIONS_DISPLAY.listen(events)
-            self.MAIN_DISPLAY.blit(self.REGIONS_DISPLAY, (0, 0))
+            self.REGIONS_MANAGER.listen(events)
+            self.REGIONS_MANAGER.update()
 
             # Handles the actions for pygame widgets
             self.UI_MANAGER.update(time_delta / 1000.0)
