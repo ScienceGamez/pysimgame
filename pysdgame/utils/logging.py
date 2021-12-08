@@ -19,10 +19,16 @@ console2.setFormatter(location_formatter)
 logger = logging.getLogger(pysdgame.__name__)
 logger.setLevel(pysdgame.LOGGING_LEVEL)
 
-if pysdgame.LOGGING_LEVEL is logging.DEBUG:
-    # Puts the file and line number before the message if DEBUG
-    logger.addHandler(console2)
-logger.addHandler(console)
+
+def register_logger(logger: logging.Logger):
+
+    if logger.getEffectiveLevel() <= logging.DEBUG:
+        # Puts the file and line number before the message if DEBUG
+        logger.addHandler(console2)
+    logger.addHandler(console)
+
+
+register_logger(logger)
 
 
 def logger_enter_exit(

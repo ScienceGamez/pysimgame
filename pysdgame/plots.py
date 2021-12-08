@@ -9,29 +9,27 @@ Different plots window can be created:
     - Regions comparison heatmap.
 """
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Dict, List, Tuple, Type
-from matplotlib.lines import Line2D
+
 import numpy as np
-
-
 import pandas
-from pygame_gui import elements
+import pygame
 import pygame_gui
+from matplotlib.lines import Line2D
+from pygame_gui import elements
 from pygame_gui.elements.ui_button import UIButton
 from pygame_gui.ui_manager import UIManager
-from pygame_matplotlib.backend_pygame import FigureSurface
 from pygame_matplotlib import pygame_color_to_plt
-from pysdgame.game_manager import GameComponentManager
-
+from pygame_matplotlib.backend_pygame import FigureSurface
+from pygame_matplotlib.gui_window import UIPlotWindow
 
 from pysdgame.model import ModelManager
+from pysdgame.utils import GameComponentManager
 from pysdgame.utils.logging import logger
 from pysdgame.utils.strings import beautify_parameter_name
+
 from .utils.maths import normalize
-import pygame
-
-
-from pygame_matplotlib.gui_window import UIPlotWindow
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager

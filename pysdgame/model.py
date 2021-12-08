@@ -1,32 +1,30 @@
 """The model that runs with the game."""
 from __future__ import annotations
-from functools import cached_property
+
 import logging
 import os
 import re
 import shutil
-from dataclasses import dataclass
-from threading import Lock, Thread
 import threading
+from dataclasses import dataclass
+from functools import cached_property
+from threading import Lock, Thread
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List
 
-from typing import Dict, Iterable, List
 import pandas as pd
-
-
-from typing import TYPE_CHECKING
-
 import pygame
 
-
-from pysdgame.regions_display import RegionComponent
+from pysdgame.actions.actions import Policy
 from pysdgame.utils import GameComponentManager
 
 from .utils.logging import logger, logger_enter_exit
 
 if TYPE_CHECKING:
-    from pysdgame.game_manager import GameManager
-    from pysdgame.plots import PlotsManager
     import pysd
+
+    from .game_manager import GameManager
+    from .plots import PlotsManager
+    from .types import POLICY_DICT
 
 
 POLICY_PREFIX = "policy_"
@@ -35,15 +33,6 @@ POLICY_PREFIX = "policy_"
 # 2. the name of the policy
 # 3. the funciton to replace
 # example name: policy_policyname_func_to_replace
-POLICY_DICT = Dict[str, List[str]]
-
-
-@dataclass
-class Policy:
-    """Represent a policy chosen by the user attributed to a region."""
-
-    name: str
-    region: RegionComponent
 
 
 class ModelManager(GameComponentManager):

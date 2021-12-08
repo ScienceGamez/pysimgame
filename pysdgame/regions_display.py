@@ -2,24 +2,22 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
 import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+
+import numpy as np
 import pygame
 from pygame import Rect, Surface, draw, mouse
 from pygame.event import Event
-import numpy as np
 
-from typing import TYPE_CHECKING
-
-
-from pysdgame.utils import HINT_DISPLAY, GameComponentManager
+from pysdgame.utils import HINT_DISPLAY, GameComponentManager, logging
 from pysdgame.utils.directories import (
     BACKGROUND_DIR_NAME,
     ORIGINAL_BACKGROUND_FILESTEM,
 )
+
 from .utils.logging import logger
-from pysdgame.utils import logging
 
 if TYPE_CHECKING:
     from .game_manager import GameManager
@@ -282,11 +280,12 @@ class RegionsManager(GameComponentManager):
 
         self._previous_hovered = None
         self._hovered_region = None
+        self._selected_region_str = None
 
         if len(self.REGIONS_DICT) > 1:
 
             self._previous_pressed = False
-            self._selected_region_str = None
+
         else:
             # Only one region
 
@@ -296,6 +295,7 @@ class RegionsManager(GameComponentManager):
 
             # Changes the manager so that it does not handle regions
             setattr(self, "listen", do_nothing)
+            setattr(self, "_listen_mouse_events", do_nothing)
 
         self._update_regions_surface()
 

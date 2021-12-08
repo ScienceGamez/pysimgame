@@ -1,43 +1,60 @@
 """Contain a class that makes the game management."""
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import sys
-import json
 import time
-from threading import Thread
-from queue import Queue
 from functools import cached_property
+from queue import Queue
+from threading import Thread
 from typing import Any, Dict, Tuple
+
 import pygame
 import pygame.display
-from pygame.event import Event
 import pygame.font
 import pygame_gui
+from pygame.event import Event
 from pygame_gui.ui_manager import UIManager
 
+from pysdgame.actions.actions import ActionsManager
 from pysdgame.statistics import StatisticsDisplayManager
 
-from .utils.pysdgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
-from .types import RegionsDict
 from .menu import MenuOverlayManager, SettingsMenuManager
-from .utils import GameComponentManager, recursive_dict_missing_values
+from .model import ModelManager, Policy
 from .plots import PlotsManager
 from .regions_display import (
     RegionComponent,
-    SingleRegionComponent,
     RegionsManager,
+    SingleRegionComponent,
 )
-from .model import ModelManager, Policy
-from .utils.logging import logger, logger_enter_exit
-
+from .types import RegionsDict
+from .utils import GameComponentManager, recursive_dict_missing_values
 from .utils.directories import (
     GAME_SETTINGS_FILENAME,
     MODEL_FILENAME,
     PYSDGAME_DIR,
     REGIONS_FILE_NAME,
 )
+from .utils.logging import logger, logger_enter_exit
+from .utils.pysdgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
+
+BACKGROUND_COLOR = "black"
+
+_GAME_MANAGER: GameManager = None
+
+
+def get_game_manager() -> GameManager:
+    if _GAME_MANAGER is not None:
+        return _GAME_MANAGER
+    else:
+        game_manager = GameManager()
+        return get_game_manager()
+
+
+def get_model_manager() -> ModelManager:
+    return get_game_manager().MODEL_MANAGER
 
 
 class Game:
@@ -68,6 +85,11 @@ class Game:
         self._SETTINGS_FILE = pathlib.Path(
             self.GAME_DIR, GAME_SETTINGS_FILENAME
         )
+
+    @cached_property
+    def SINGLE_REGION(self) -> bool:
+        """Whether the game has only one region."""
+        return len(self.REGIONS_DICT) <= 1
 
     @cached_property
     def REGIONS_DICT(self) -> RegionsDict:
@@ -129,6 +151,7 @@ class GameManager(GameComponentManager):
     UI_MANAGER: UIManager
     PLOTS_MANAGER: PlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
+    ACTIONS_MANAGER: ActionsManager
     # Stores the time
     CLOCK: pygame.time.Clock
 
@@ -139,7 +162,9 @@ class GameManager(GameComponentManager):
 
     def __init__(self) -> None:
         """Override the main :py:class:`GameManager` is the main organizer."""
-        pass
+        global _GAME_MANAGER
+        if _GAME_MANAGER is None:
+            _GAME_MANAGER = self
 
     # region Properties
     @property
@@ -218,21 +243,22 @@ class GameManager(GameComponentManager):
         # self.PLOTS_MANAGER.add_graph()
 
     def _start_model(self):
-        logger.debug("[START] Starting the model")
-
         # Create an instance managing the model
         self.MODEL_MANAGER = ModelManager(self)
         self.MODEL_MANAGER.prepare()
 
         self.MODEL_THREAD = Thread(target=self.MODEL_MANAGER.run)
-
-        logger.debug("[FINISHED] Starting the model")
         # await asyncio.sleep(1)
         return
 
     def _prepare_stats(self):
         self.STATISTICS_MANAGER = StatisticsDisplayManager(self)
         self.STATISTICS_MANAGER.prepare()
+        return
+
+    def _prepare_actions(self):
+        self.ACTIONS_MANAGER = ActionsManager(self)
+        self.ACTIONS_MANAGER.prepare()
         return
 
     def prepare(self):
@@ -266,12 +292,17 @@ class GameManager(GameComponentManager):
         )
         display_thread.start()
 
+        p2 = Thread(
+            target=self._prepare_actions, name="Preparing Actions manager"
+        )
+        p2.start()
         p3 = Thread(target=self._prepare_stats, name="Preparing Stats manager")
         p3.start()
 
         # Wait each thread to finish
         p0.join()
         p1.join()
+        p2.join()
         p3.join()
 
         # Loading is finished
@@ -290,6 +321,7 @@ class GameManager(GameComponentManager):
         self.MENU_OVERLAY.connect()
         self.MODEL_MANAGER.connect()
         self.STATISTICS_MANAGER.connect()
+        self.ACTIONS_MANAGER.connect()
 
     @logger_enter_exit()
     def _loading_loop(self):
@@ -318,7 +350,7 @@ class GameManager(GameComponentManager):
                 if event.type == pygame.USEREVENT:
                     logger.debug(event)
 
-            self.MAIN_DISPLAY.fill("black")
+            self.MAIN_DISPLAY.fill(BACKGROUND_COLOR)
             self.MAIN_DISPLAY.blit(font_surfaces[counter % 3], font_position)
 
             pygame.display.update()
@@ -349,6 +381,7 @@ class GameManager(GameComponentManager):
         # Start the game
         self.run_game_loop()
 
+    # region During Game
     def run_game_loop(self):
         """Main game loop.
 
@@ -371,6 +404,8 @@ class GameManager(GameComponentManager):
             for event in events:
                 self.process_event(event)
 
+            self.MAIN_DISPLAY.fill(BACKGROUND_COLOR)
+
             self.REGIONS_MANAGER.listen(events)
             self.REGIONS_MANAGER.update()
 
@@ -385,7 +420,6 @@ class GameManager(GameComponentManager):
 
             pygame.display.update()
 
-    # region During Game
     def process_event(self, event: Event):
         logger.info(f"Processing {event}")
         if event.type == pygame.QUIT:
