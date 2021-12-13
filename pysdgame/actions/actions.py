@@ -16,12 +16,13 @@ from functools import wraps
 from importlib.machinery import SourceFileLoader
 from sys import path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Dict, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 from pysdgame.utils import GameComponentManager
 from pysdgame.utils.logging import register_logger
 
 if TYPE_CHECKING:
+    from pysdgame.model import ModelManager
     from pysdgame.regions_display import RegionComponent
 
 _ACTION_MANAGER: ActionsManager
@@ -107,10 +108,18 @@ def change_method(method_name: str, new_method: Callable):
     return (method_name, new_method)
 
 
+# Recursive type definition for the Dictonary containing the actions
+ActionsDict = Dict[str, Union[BaseAction, "ActionsDict"]]
+
+
 class ActionsManager(GameComponentManager):
+    """The manager for the actions a user can take during the game/simulation."""
+
     _modules: Dict[str, ModuleType] = {}
     # A tree type of dictionary remebering the actions availables
-    actions: Dict[str, Any] = {}
+    actions: ActionsDict = {}
+
+    MODEL_MANAGER: ModelManager
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -139,4 +148,4 @@ class ActionsManager(GameComponentManager):
         logger.debug(f"Action Mods found : {list(self._modules.keys())}")
 
     def connect(self):
-        pass
+        self.MODEL_MANAGER = self.GAME_MANAGER.MODEL_MANAGER

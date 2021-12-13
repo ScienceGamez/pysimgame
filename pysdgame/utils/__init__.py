@@ -1,18 +1,16 @@
 """Utility module."""
 from __future__ import annotations
-from functools import wraps
 
 import logging
 import threading
-from typing import TYPE_CHECKING, Callable, Tuple
 from abc import ABC, abstractmethod
+from functools import wraps
+from typing import TYPE_CHECKING, Callable, Tuple
 
 import pygame
 
-
 if TYPE_CHECKING:
-    from pysdgame.game_manager import Game
-    from pysdgame.game_manager import GameManager
+    from pysdgame.game_manager import Game, GameManager
 
 
 def recursive_dict_missing_values(dic_from: dict, dic_to: dict) -> dict:
@@ -97,38 +95,45 @@ class GameComponentManager(ABC):
         """
         return NotImplemented
 
+    def draw(self):
+        """Draw the manager."""
+        pass
+
+    def process_events(self, event: pygame.event.Event):
+        """Called in the game manager for listening to the events."""
+        pass
+
     def update(self) -> bool:
         """Update the manager.
 
-        Meant to be called when something in the manager is updating.
-        Other manager should listen to this so they receive the update.
+        Meant to be called internally
+        when something in the manager is updating.
+        Other manager can listen to this using
+
+        :py:meth:`listen_to_update` so they receive the update.
 
         :return: True if the managers needed an update else false.
         """
         return True
 
-    def process_events(self, event: pygame.event.Event):
-        """Called for listening to the events."""
-        pass
-
     def listen_to_update(
         self,
-        manager: GameComponentManager,
+        other_manager: GameComponentManager,
         method: Callable,
         threaded: bool = False,
     ) -> None:
-        """Add a listener for the update of a certain manager.
+        """Add a listener for the update of a certain other manager.
 
         The method specified will be called after the manager has done
         an update of something internally (update() returns True).
 
-        :param manager: The manager to be listened.
+        :param other_manager: The manager to be listened.
         :param method: The method to be called after the update.
         :param threaded: Whether to call the method on a separated thread.
         """
-        old_update = manager.update
+        old_update = other_manager.update
 
-        @wraps(manager.update)
+        @wraps(other_manager.update)
         def listened_update():
             if old_update():
                 if threaded:
@@ -136,4 +141,4 @@ class GameComponentManager(ABC):
                 else:
                     method()
 
-        manager.update = listened_update
+        other_manager.update = listened_update

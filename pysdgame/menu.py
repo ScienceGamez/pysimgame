@@ -5,10 +5,10 @@ The menu which is openable from that MenuOverlayMangaer is handled by
 SettingsMenuManager.
 """
 from __future__ import annotations
+
 from pathlib import Path
-
-
 from typing import TYPE_CHECKING
+
 import pygame
 from pygame.event import Event
 
@@ -16,23 +16,24 @@ from pysdgame import PYSDGAME_SETTINGS
 from pysdgame.statistics import StatisticsDisplayManager
 from pysdgame.utils import GameComponentManager
 from pysdgame.utils.directories import THEMES_DIR
-from pysdgame.utils.logging import logger
-
 from pysdgame.utils.dynamic_menu import UISettingsMenu
+from pysdgame.utils.logging import logger
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import GameManager
     from pysdgame.plots import PlotsManager
 
 import pygame_gui
+from pygame_gui import UIManager
 from pygame_gui.elements import UIButton
 
 
-class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
+class MenuOverlayManager(GameComponentManager):
     """Class that handles the menu of the game."""
 
     PLOTS_MANAGER: PlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
+    UI_MANAGER: UIManager
 
     def __init__(self, GAME_MANAGER: GameManager) -> None:
         """Initialize the Menu overlay of the game.
@@ -50,8 +51,7 @@ class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
             THEMES_DIR, PYSDGAME_SETTINGS["Themes"]["Game Menu"]
         )
         logger.debug(f"Theme for Menu: {game_menu_theme_path}")
-        pygame_gui.UIManager.__init__(
-            self,
+        self.UI_MANAGER = UIManager(
             screen_resolution,
             theme_path=game_menu_theme_path,
         )
@@ -70,31 +70,31 @@ class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
             UIButton(
                 create_rect(0),
                 text="",
-                manager=self,
+                manager=self.UI_MANAGER,
                 object_id="#open_menu_button",
             ),
             UIButton(
                 create_rect(1),
                 text="",
-                manager=self,
+                manager=self.UI_MANAGER,
                 object_id="#help_button",
             ),
             UIButton(
                 create_rect(2),
                 text="",
-                manager=self,
+                manager=self.UI_MANAGER,
                 object_id="#plots_button",
             ),
             UIButton(
                 create_rect(3),
                 text="",
-                manager=self,
+                manager=self.UI_MANAGER,
                 object_id="#stats_button",
             ),
             UIButton(
                 create_rect(4),
                 text="",
-                manager=self,
+                manager=self.UI_MANAGER,
                 object_id="#regions_button",
             ),
         ]
@@ -104,7 +104,7 @@ class MenuOverlayManager(pygame_gui.UIManager, GameComponentManager):
         self.STATISTICS_MANAGER = self.GAME_MANAGER.STATISTICS_MANAGER
 
     def process_events(self, event: Event):
-        handled = super().process_events(event)
+        handled = self.UI_MANAGER.process_events(event)
 
         if event.type != pygame.USEREVENT:
             # gui events are USERVENT

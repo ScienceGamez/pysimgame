@@ -1,6 +1,7 @@
 """Contain a class that makes the game management."""
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import pathlib
@@ -9,7 +10,7 @@ import time
 from functools import cached_property
 from queue import Queue
 from threading import Thread
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple, Type
 
 import pygame
 import pygame.display
@@ -20,6 +21,7 @@ from pygame_gui.ui_manager import UIManager
 
 from pysdgame.actions.actions import ActionsManager
 from pysdgame.statistics import StatisticsDisplayManager
+from pysdgame.utils import logging
 
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .model import ModelManager, Policy
@@ -138,20 +140,27 @@ class Game:
 class GameManager(GameComponentManager):
     """Main component of the game.
 
-    Organizes the other components from the game.
+    Organizes the other components managers from the game.
+    It is required for the game manager to run on the main thread.
     """
 
     ## GAME manager MUST be run on a main thread !
     _game: Game
     _model_fps: float = 1
     fps_counter: int = 0
-    MODEL_MANAGER: ModelManager = None
     _is_loading: bool = False
     _loading_screen_thread: Thread
+
+    # Components managers
+    MANAGERS: Dict[str, GameComponentManager]
+    _manager_classes = List[Type[GameComponentManager]]
     UI_MANAGER: UIManager
+    MODEL_MANAGER: ModelManager
     PLOTS_MANAGER: PlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
     ACTIONS_MANAGER: ActionsManager
+    REGIONS_MANAGER: RegionsManager
+    MENU_OVERLAY: MenuOverlayManager
     # Stores the time
     CLOCK: pygame.time.Clock
 
@@ -165,6 +174,17 @@ class GameManager(GameComponentManager):
         global _GAME_MANAGER
         if _GAME_MANAGER is None:
             _GAME_MANAGER = self
+        # TODO, see if there is a better way to set that
+        # Think about modding(different games), threading,  and UI positioning
+        self._manager_classes = [
+            RegionsManager,
+            MenuOverlayManager,
+            PlotsManager,
+            ModelManager,
+            StatisticsDisplayManager,
+            ActionsManager,
+        ]
+        self.MANAGERS = {}
 
     # region Properties
     @property
@@ -203,63 +223,6 @@ class GameManager(GameComponentManager):
 
     # endregion
     # region Loading
-    def _load_game_content(self):
-        logger.debug(f"[START] Loading {self.game.NAME}.")
-        # This will load the settings
-        self.game.SETTINGS
-        logger.debug(f"[FINISHED] Loading {self.game.NAME}.")
-
-    @logger_enter_exit()
-    def _create_display(self):
-
-        self._loading_screen_thread = Thread(target=self._loading_loop)
-        self._loading_screen_thread.start()
-
-        # Set up a pygame_gui manager
-        # TODO: add the theme path
-        self.UI_MANAGER = UIManager(self.MAIN_DISPLAY.get_size())
-
-        self._prepare_regions_display()
-        self._prepare_graph_display()
-        self._prepare_menu_displays()
-
-        self._loading_screen_thread.join()
-
-    def _prepare_regions_display(self):
-        self.REGIONS_MANAGER = RegionsManager(self)
-        self.REGIONS_MANAGER.prepare()
-
-    def _prepare_menu_displays(self):
-        """Set up the menu displayer of the game.
-
-        Menu buttons are set at the top right.
-        """
-        self.MENU_OVERLAY = MenuOverlayManager(self)
-        self.MENU_OVERLAY.prepare()
-
-    def _prepare_graph_display(self):
-        self.PLOTS_MANAGER = PlotsManager(self)
-        self.PLOTS_MANAGER.prepare()
-        # self.PLOTS_MANAGER.add_graph()
-
-    def _start_model(self):
-        # Create an instance managing the model
-        self.MODEL_MANAGER = ModelManager(self)
-        self.MODEL_MANAGER.prepare()
-
-        self.MODEL_THREAD = Thread(target=self.MODEL_MANAGER.run)
-        # await asyncio.sleep(1)
-        return
-
-    def _prepare_stats(self):
-        self.STATISTICS_MANAGER = StatisticsDisplayManager(self)
-        self.STATISTICS_MANAGER.prepare()
-        return
-
-    def _prepare_actions(self):
-        self.ACTIONS_MANAGER = ActionsManager(self)
-        self.ACTIONS_MANAGER.prepare()
-        return
 
     def prepare(self):
         self._prepare_components()
@@ -272,44 +235,69 @@ class GameManager(GameComponentManager):
         # Create the main display (MUST NOT DO THAT IN A THREAD !)
         # (because the display will be cleared at end of thread)
         self.MAIN_DISPLAY
-
+        # TODO: add the theme path
+        self.UI_MANAGER = UIManager(self.MAIN_DISPLAY.get_size())
         # Set the queue for processing of the policies
         self.policy_queue = Queue()
+
+        # Launch a thread for the loading display
+        loading_thread = Thread(target=self._loading_loop, name="Loading")
+        loading_thread.start()
+
+        def start_manager(manager_class: Type[GameComponentManager]):
+            """Start a game manager component.
+
+            Call the prepare method, that is not dependent on other component.
+            """
+            manager = manager_class(self)
+            manager.prepare()
+            return manager
 
         # We lauch threads here
         # At the moment it is not very efficient as all is loaded from
         # local ressource but in the future we might want to have some
         # networking processes to download some content.
+        with concurrent.futures.ThreadPoolExecutor(
+            thread_name_prefix="managerPrepare"
+        ) as executor:
 
-        p0 = Thread(target=self._start_model, name="Starting Model Manager")
-        p0.start()
-        p1 = Thread(
-            target=self._load_game_content, name="Game Content Loading"
+            future_to_manager = {
+                executor.submit(start_manager, manager_class): manager_class
+                for manager_class in self._manager_classes
+            }
+            # Wait for the threads to finish
+            for future in concurrent.futures.as_completed(future_to_manager):
+                manager_class = future_to_manager[future]
+                try:
+                    manager = future.result()
+                except Exception as exc:
+                    raise Exception(
+                        f"Could not prepare {manager_class}."
+                    ) from exc
+                else:
+                    self.MANAGERS[manager_class] = manager
+
+        logger.info(f"MANAGERS : {self.MANAGERS}")
+        # Assign some specific managers as variable
+        # TODO: make this more moddable by using different classes ?
+        # Ex. a find ___ manager method
+        self.MODEL_MANAGER = self.MANAGERS[ModelManager]
+        self.PLOTS_MANAGER = self.MANAGERS[PlotsManager]
+        self.STATISTICS_MANAGER = self.MANAGERS[StatisticsDisplayManager]
+        self.ACTIONS_MANAGER = self.MANAGERS[ActionsManager]
+        self.REGIONS_MANAGER = self.MANAGERS[RegionsManager]
+        self.MENU_OVERLAY = self.MANAGERS[MenuOverlayManager]
+
+        # Model will run on a separated thread
+        self.MODEL_THREAD = Thread(
+            target=self.MODEL_MANAGER.run, name="ModelThread"
         )
-        p1.start()
-        display_thread = Thread(
-            target=self._create_display, name="Creating Display"
-        )
-        display_thread.start()
 
-        p2 = Thread(
-            target=self._prepare_actions, name="Preparing Actions manager"
-        )
-        p2.start()
-        p3 = Thread(target=self._prepare_stats, name="Preparing Stats manager")
-        p3.start()
-
-        # Wait each thread to finish
-        p0.join()
-        p1.join()
-        p2.join()
-        p3.join()
-
-        # Loading is finished
-        logger.debug(f"SETTING _is_loading {self._is_loading}")
+        # Loading is finished (used in the loading screen loop)
+        logger.debug(f" _is_loading {self._is_loading}")
         self._is_loading = False
         # Display thread is showing the loading screen
-        display_thread.join()
+        loading_thread.join()
         logger.info(
             "[FINISHED] Prepare to start new game. "
             "Loading Time: {} sec.".format(time.time() - start_time)
@@ -317,11 +305,8 @@ class GameManager(GameComponentManager):
 
     def connect(self):
         # Components are ready, we can connect them together
-        self.PLOTS_MANAGER.connect()
-        self.MENU_OVERLAY.connect()
-        self.MODEL_MANAGER.connect()
-        self.STATISTICS_MANAGER.connect()
-        self.ACTIONS_MANAGER.connect()
+        for manager in self.MANAGERS.values():
+            manager.connect()
 
     @logger_enter_exit()
     def _loading_loop(self):
@@ -348,7 +333,7 @@ class GameManager(GameComponentManager):
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.USEREVENT:
-                    logger.debug(event)
+                    logger.debug(f"User Event : {event}")
 
             self.MAIN_DISPLAY.fill(BACKGROUND_COLOR)
             self.MAIN_DISPLAY.blit(font_surfaces[counter % 3], font_position)
@@ -387,6 +372,8 @@ class GameManager(GameComponentManager):
 
         TODO: The model, the plot manager and the pygame loop should run
         on separated threads.
+        TODO: Use correctly the methods from abstact region component class
+        (Note that they will also require proper implementation in the children)
         """
         logger.debug(f"[START] run_game_loop")
 
@@ -412,16 +399,17 @@ class GameManager(GameComponentManager):
             # Handles the actions for pygame widgets
             self.UI_MANAGER.update(time_delta / 1000.0)
             self.STATISTICS_MANAGER.UI_MANAGER.update(time_delta / 1000.0)
-            self.MENU_OVERLAY.update(time_delta / 1000.0)
+            self.MENU_OVERLAY.UI_MANAGER.update(time_delta / 1000.0)
 
             self.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
             self.STATISTICS_MANAGER.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
-            self.MENU_OVERLAY.draw_ui(self.MAIN_DISPLAY)
+            self.MENU_OVERLAY.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
 
             pygame.display.update()
 
     def process_event(self, event: Event):
-        logger.info(f"Processing {event}")
+        logger.debug(f"Processing {event}")
+        self.UI_MANAGER.process_events(event)
         if event.type == pygame.QUIT:
             self.MODEL_MANAGER.pause()
             pygame.quit()
@@ -429,10 +417,8 @@ class GameManager(GameComponentManager):
         elif event.type == pygame.TEXTINPUT:
             self._process_textinput_event(event)
 
-        self.UI_MANAGER.process_events(event)
-        self.MENU_OVERLAY.process_events(event)
-        self.PLOTS_MANAGER.process_events(event)
-        self.STATISTICS_MANAGER.process_events(event)
+        for manager in self.MANAGERS.values():
+            manager.process_events(event)
 
     def _start_new_model_thread(self):
         """Start a new thread for the model.
