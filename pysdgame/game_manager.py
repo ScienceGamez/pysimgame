@@ -20,6 +20,7 @@ from pygame.event import Event
 from pygame_gui.ui_manager import UIManager
 
 from pysdgame.actions.actions import ActionsManager
+from pysdgame.actions.gui import ActionsGUIManager
 from pysdgame.statistics import StatisticsDisplayManager
 from pysdgame.utils import logging
 
@@ -71,6 +72,7 @@ class Game:
     GAME_DIR: pathlib.Path
     REGIONS_FILE: pathlib.Path
     PYSD_MODEL_FILE: pathlib.Path
+    SETTINGS: Dict[str, Any]
 
     REGIONS_DICT: RegionsDict
 
@@ -181,6 +183,7 @@ class GameManager(GameComponentManager):
             MenuOverlayManager,
             PlotsManager,
             ModelManager,
+            ActionsGUIManager,
             StatisticsDisplayManager,
             ActionsManager,
         ]
@@ -396,10 +399,11 @@ class GameManager(GameComponentManager):
             self.REGIONS_MANAGER.listen(events)
             self.REGIONS_MANAGER.update()
 
-            # Handles the actions for pygame widgets
-            self.UI_MANAGER.update(time_delta / 1000.0)
-            self.STATISTICS_MANAGER.UI_MANAGER.update(time_delta / 1000.0)
-            self.MENU_OVERLAY.UI_MANAGER.update(time_delta / 1000.0)
+            for manager in self.MANAGERS.values():
+                if hasattr(manager, "UI_MANAGER"):
+                    # Handles the actions for pygame_gui UIManagers
+                    manager.UI_MANAGER.update(time_delta / 1000.0)
+                manager.draw()
 
             self.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
             self.STATISTICS_MANAGER.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)

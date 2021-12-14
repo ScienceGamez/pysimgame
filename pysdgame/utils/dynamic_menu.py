@@ -1,7 +1,8 @@
 """Tools to create a menu dynamically from a json/dict input."""
 import os
-from typing import Any, Dict, Union
 from enum import IntEnum, auto
+from typing import Any, Dict, Union
+
 import pygame
 import pygame_gui
 from pygame_gui.core.interfaces.container_interface import (
@@ -10,12 +11,11 @@ from pygame_gui.core.interfaces.container_interface import (
 from pygame_gui.core.interfaces.manager_interface import IUIManagerInterface
 from pygame_gui.core.ui_container import UIContainer
 from pygame_gui.core.ui_element import ObjectID, UIElement
-from pygame_gui.elements import UIDropDownMenu, UITextBox, UIScrollingContainer
+from pygame_gui.elements import UIDropDownMenu, UIScrollingContainer, UITextBox
 from pygame_gui.elements.ui_button import UIButton
 from pygame_gui.elements.ui_horizontal_slider import UIHorizontalSlider
 from pygame_gui.elements.ui_label import UILabel
 from pygame_gui.windows import UIFileDialog
-
 from pysdgame.utils.logging import logger
 
 
@@ -98,6 +98,11 @@ class UIColumnContainer(UIScrollingContainer):
         self.set_scrollable_area_dimensions(
             (self._max_width, self._next_position)
         )
+
+    def clear(self):
+        """Removes and kills all the UI elements inside this container."""
+        self.scrollable_container.clear()
+        self._next_position = 0
 
 
 class RowWrapPolicy(IntEnum):

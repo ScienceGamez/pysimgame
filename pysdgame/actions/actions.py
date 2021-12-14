@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 _ACTION_MANAGER: ActionsManager
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 register_logger(logger)
 
 
