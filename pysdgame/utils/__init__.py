@@ -8,6 +8,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Callable, Tuple
 
 import pygame
+from pygame_gui.ui_manager import UIManager
 
 if TYPE_CHECKING:
     from pysdgame.game_manager import Game, GameManager
@@ -69,6 +70,8 @@ class GameComponentManager(ABC):
 
     GAME_MANAGER: GameManager
     GAME: Game
+    # Optional attribute
+    UI_MANAGER: UIManager
 
     def __init__(self, GAME_MANAGER: GameManager) -> None:
         self.GAME_MANAGER = GAME_MANAGER

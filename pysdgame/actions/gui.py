@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 
 import pygame
 import pygame_gui
-from pygame.event import Event, event_name
+from pygame.event import Event, EventType, event_name
 from pygame_gui.elements import UIButton, UIWindow
 from pygame_gui.ui_manager import UIManager
-from pysdgame.actions.actions import ActionsDict, BaseAction
+from pysdgame.actions.actions import ActionEvent, ActionsDict, BaseAction
 from pysdgame.utils import GameComponentManager
 from pysdgame.utils.directories import THEME_FILENAME, THEMES_DIR
 from pysdgame.utils.dynamic_menu import UIColumnContainer
@@ -22,7 +22,7 @@ from pysdgame.utils.logging import register_logger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-register_logger(logger)
+# register_logger(logger)
 
 
 class ActionsGUIManager(GameComponentManager):
@@ -110,26 +110,34 @@ class ActionsGUIManager(GameComponentManager):
         When a button is clicked.
         """
         self.UI_MANAGER.process_events(event)
-        if event.type == pygame.USEREVENT:
-            if (
-                event.user_type == pygame_gui.UI_BUTTON_PRESSED
-                and "#action_button" in event.ui_object_id
+        match event:
+            case EventType(
+                type=pygame.USEREVENT, user_type=pygame_gui.UI_BUTTON_PRESSED
             ):
                 name = event.ui_element.text
-                logger.info(
-                    f"Action selected {self._current_actions_dict[name]}"
-                )
-            elif (
-                event.user_type == pygame_gui.UI_BUTTON_PRESSED
-                and "#actions_type_button" in event.ui_object_id
-            ):
-                name = event.ui_element.text
-                logger.debug(f"Action types selected {name}")
-                # Redraw the gui with the new selected action
-                self._update_for_new_dict(self._current_actions_dict[name])
+                if "#action_button" in event.ui_object_id:
+                    # Activate the action
+                    action = self._current_actions_dict[name]
+                    if action.activated:
+                        action.deactivate()
+                    else:
+                        action.activate()
+                    logger.info(
+                        f"Action selected {self._current_actions_dict[name]}"
+                    )
+                elif "#actions_type_button" in event.ui_object_id:
 
-            else:
-                logger.debug(f"Other event {event}")
+                    logger.debug(f"Action types selected {name}")
+                    # Redraw the gui with the new selected action
+                    self._update_for_new_dict(self._current_actions_dict[name])
+                else:
+                    logger.debug(f"Other event {event}")
+            case EventType(type=ActionEvent):
+                # TODO: this will not work as overriding the ActionEvent value
+                print(ActionEvent)
+                logger.info(f"ActionEvent {event}")
+            case _:
+                pass
 
     def draw(self):
         """Draw the actions gui on the main display."""

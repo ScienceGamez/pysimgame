@@ -156,7 +156,6 @@ class GameManager(GameComponentManager):
     # Components managers
     MANAGERS: Dict[str, GameComponentManager]
     _manager_classes = List[Type[GameComponentManager]]
-    UI_MANAGER: UIManager
     MODEL_MANAGER: ModelManager
     PLOTS_MANAGER: PlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
@@ -396,7 +395,6 @@ class GameManager(GameComponentManager):
 
             self.MAIN_DISPLAY.fill(BACKGROUND_COLOR)
 
-            self.REGIONS_MANAGER.listen(events)
             self.REGIONS_MANAGER.update()
 
             for manager in self.MANAGERS.values():

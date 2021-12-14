@@ -377,29 +377,16 @@ class RegionsManager(GameComponentManager):
 
         logger.info(f"Loaded background {self.BACKGROUND_SURFACE}")
 
-    def listen(self, event: pygame.event.Event) -> bool:
-        """Listen the events concerning the earth surface.
-
-        The earth view surface listens for the following:
-            * Hovering a region
-            * Selecting a region by clicking on it
-            * Deselecting region by clicking outside
-
-        :return: True if the region surface has been updated.
-
-
-        """
-        logger.debug(f"[START] Listening : {event}")
-
-        logger.debug(f"[FINISHED] Listening : {event}")
-
-        return True
-
     def _listen_mouse_events(self) -> bool:
         """Listen to mouse clicks and movement.
 
         When a region is clicked, it should become the selected region.
         Throw a :var:`REGION_SELECTED_EVENT` when a region is selected.
+
+        The earth view surface listens for the following:
+            * Hovering a region
+            * Selecting a region by clicking on it
+            * Deselecting region by clicking outside
 
         :return: True if something should change in the display.
         """

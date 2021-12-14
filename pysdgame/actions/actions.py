@@ -18,6 +18,8 @@ from sys import path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
+import pygame
+from pygame.event import Event
 from pysdgame.utils import GameComponentManager
 from pysdgame.utils.logging import register_logger
 
@@ -26,6 +28,10 @@ if TYPE_CHECKING:
     from pysdgame.regions_display import RegionComponent
 
 _ACTION_MANAGER: ActionsManager
+print("---------------")
+ActionEvent = pygame.event.custom_type()
+print(ActionEvent)
+print("---------------")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -37,35 +43,16 @@ class BaseAction:
     """Base class for all actions Classes."""
 
     name: str
+    actions: List[Callable]
+    regions_available: List[str] = field(default_factory=list)
+    activated: bool = False
 
     def __post_init__(self) -> None:
         # Executed after the dataclass __init__
         self.register()
 
-    @abstractmethod
     def register(self):
         """Register the method in the Action Manager."""
-        ...
-
-
-def action_method(function: Callable):
-    """Decorator for all actions methods."""
-
-    @wraps(function)
-    def wrapped(*args, **kwargs):
-        return function(*args, **kwargs)
-
-    return wrapped
-
-
-@dataclass(kw_only=True)
-class Policy(BaseAction):
-    """Represent a set of actions that will be replaced."""
-
-    actions: List[Callable]
-    regions_available: List[str] = field(default_factory=list)
-
-    def register(self):
         dic = _ACTION_MANAGER.actions
 
         path = _ACTION_MANAGER._current_module
@@ -88,6 +75,48 @@ class Policy(BaseAction):
         dic[self.name] = self
         logger.info(f"Registerd {self}")
         logger.debug(_ACTION_MANAGER.actions)
+
+    def deactivate(self):
+        """Actual deactivation of the policy."""
+        self.activated = False
+        pygame.event.post(
+            Event(ActionEvent, {"action": self, "activated": False})
+        )
+
+    def activate(self):
+        """Actual activation of the policy."""
+        pygame.event.post(
+            Event(ActionEvent, {"action": self, "activated": True})
+        )
+        self.activated = True
+
+
+def action_method(function: Callable):
+    """Decorator for all actions methods."""
+
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        return function(*args, **kwargs)
+
+    return wrapped
+
+
+@dataclass(kw_only=True)
+class Policy(BaseAction):
+    """Represent a set of modifications that will be applied to the model.
+
+    A policy can be activated or deactivated whenever the user wants it.
+    """
+
+
+@dataclass(kw_only=True)
+class Trigger(BaseAction):
+    """Few step change applied to the model.
+
+    The change disappear at the end of the n_steps.
+    """
+
+    n_steps: int = 1
 
 
 @action_method
@@ -149,3 +178,6 @@ class ActionsManager(GameComponentManager):
 
     def connect(self):
         self.MODEL_MANAGER = self.GAME_MANAGER.MODEL_MANAGER
+
+    def trigger(self, action: BaseAction):
+        """Trigger the action."""
