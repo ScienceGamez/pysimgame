@@ -439,7 +439,8 @@ class ModelManager(GameComponentManager):
             for model_dependent_method in policy.actions:
                 # Iterate over all the methods from the actions
                 model = self[region]
-                attr_name, new_func = model_dependent_method(model)
+                # NOTE: in pysd we need to set the components of the model object
+                attr_name, new_func = model_dependent_method(model.components)
                 logger.info(getattr(model.components, attr_name))
                 setattr(model.components, attr_name, new_func)
                 logger.info(getattr(model.components, attr_name))

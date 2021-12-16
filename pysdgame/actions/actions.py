@@ -95,9 +95,9 @@ class BaseAction:
 
 
 def action_method(
-    function: Callable[ModelType, float],
+    function: Callable[[ModelType], Tuple[str, Callable[[], float]]],
 ) -> Callable[..., Tuple[str, Callable[[], float]]]:
-    """Decorator for all actions methods.
+    """Decorate all actions methods.
 
     All the actions method must return this.
 
@@ -105,16 +105,22 @@ def action_method(
     Or is it simply the ugliest way of nesting decorators when a better
     solution exists ?
     """
-    # Function that is defined here, to help modder create actions.
+
     @wraps(function)
-    def action_method_wrapper(*args, **kwargs):
-        # function that will be called in the model manager
-        def model_dependent_method(model):
+    # Function that is defined here, to help modder create actions.
+    def action_method_wrapper(
+        *args, **kwargs
+    ) -> Callable[[ModelType], Tuple[str, Callable[[], float]]]:
+        # function that will be called in the models manager
+        def model_dependent_method(
+            model: ModelType,
+        ) -> Tuple[str, Callable[[], float]]:
             # Call the docrated function to get attre name and uuser funtion
             attr_name, new_func = function(*args, **kwargs)
-            # Actual method that will replace the model method
+
             @wraps(new_func)
-            def model_method():
+            # Actual method that will replace the model method
+            def model_method() -> float:
                 return new_func(model)
 
             return attr_name, model_method

@@ -400,6 +400,7 @@ class GameManager(GameComponentManager):
 
             self.REGIONS_MANAGER.update()
 
+            self.UI_MANAGER.update(time_delta / 1000.0)
             for manager in self.MANAGERS.values():
                 if hasattr(manager, "UI_MANAGER"):
                     # Handles the actions for pygame_gui UIManagers
