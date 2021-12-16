@@ -16,9 +16,19 @@ from functools import wraps
 from importlib.machinery import SourceFileLoader
 from sys import path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import pygame
+import pysdgame
 from pygame.event import Event
 from pysdgame.utils import GameComponentManager
 from pysdgame.utils.logging import register_logger
@@ -26,12 +36,10 @@ from pysdgame.utils.logging import register_logger
 if TYPE_CHECKING:
     from pysdgame.model import ModelManager
     from pysdgame.regions_display import RegionComponent
+    from pysdgame.types import ModelType
 
 _ACTION_MANAGER: ActionsManager
-print("---------------")
-ActionEvent = pygame.event.custom_type()
-print(ActionEvent)
-print("---------------")
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -79,26 +87,41 @@ class BaseAction:
     def deactivate(self):
         """Actual deactivation of the policy."""
         self.activated = False
-        pygame.event.post(
-            Event(ActionEvent, {"action": self, "activated": False})
-        )
 
     def activate(self):
         """Actual activation of the policy."""
-        pygame.event.post(
-            Event(ActionEvent, {"action": self, "activated": True})
-        )
+
         self.activated = True
 
 
-def action_method(function: Callable):
-    """Decorator for all actions methods."""
+def action_method(
+    function: Callable[ModelType, float],
+) -> Callable[..., Tuple[str, Callable[[], float]]]:
+    """Decorator for all actions methods.
 
+    All the actions method must return this.
+
+    Does the cancer of this implementation makes it a beauty ?
+    Or is it simply the ugliest way of nesting decorators when a better
+    solution exists ?
+    """
+    # Function that is defined here, to help modder create actions.
     @wraps(function)
-    def wrapped(*args, **kwargs):
-        return function(*args, **kwargs)
+    def action_method_wrapper(*args, **kwargs):
+        # function that will be called in the model manager
+        def model_dependent_method(model):
+            # Call the docrated function to get attre name and uuser funtion
+            attr_name, new_func = function(*args, **kwargs)
+            # Actual method that will replace the model method
+            @wraps(new_func)
+            def model_method():
+                return new_func(model)
 
-    return wrapped
+            return attr_name, model_method
+
+        return model_dependent_method
+
+    return action_method_wrapper
 
 
 @dataclass(kw_only=True)
@@ -119,12 +142,21 @@ class Trigger(BaseAction):
     n_steps: int = 1
 
 
-@action_method
-def change_constant(constant_name: str, value: float):
-    """Change the value of the constant."""
+@dataclass(kw_only=True)
+class Budget(BaseAction):
+    """A budget is a value that can be change by the user."""
 
+    min: float
+    max: float
+
+
+@action_method
+def change_constant(
+    constant_name: str, value: float
+) -> Tuple[str, Callable[ModelType, float]]:
+    """Change the value of the constant."""
+    # The function that will actually change the model.
     def new_constant(model):
-        """The function that will actually change the model."""
         return value
 
     new_constant.__name__ = constant_name
@@ -132,7 +164,9 @@ def change_constant(constant_name: str, value: float):
 
 
 @action_method
-def change_method(method_name: str, new_method: Callable):
+def change_method(
+    method_name: str, new_method: Callable
+) -> Tuple[str, Callable[ModelType, float]]:
     """Change a method of the model."""
     return (method_name, new_method)
 

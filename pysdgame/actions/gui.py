@@ -5,10 +5,12 @@ from typing import TYPE_CHECKING
 
 import pygame
 import pygame_gui
+import pysdgame
 from pygame.event import Event, EventType, event_name
 from pygame_gui.elements import UIButton, UIWindow
 from pygame_gui.ui_manager import UIManager
-from pysdgame.actions.actions import ActionEvent, ActionsDict, BaseAction
+from pysdgame.actions.actions import ActionsDict, BaseAction
+from pysdgame.regions_display import RegionsManager
 from pysdgame.utils import GameComponentManager
 from pysdgame.utils.directories import THEME_FILENAME, THEMES_DIR
 from pysdgame.utils.dynamic_menu import UIColumnContainer
@@ -29,6 +31,7 @@ class ActionsGUIManager(GameComponentManager):
     UI_MANAGER: UIManager
     CONTAINER: UIColumnContainer
     ACTIONS_MANAGER: ActionsManager
+    REGIONS_MANAGER: RegionsManager
     _current_actions_dict: ActionsDict
 
     def prepare(self):
@@ -54,6 +57,7 @@ class ActionsGUIManager(GameComponentManager):
     def connect(self):
         """Connect to the actions."""
         self.ACTIONS_MANAGER = self.GAME_MANAGER.ACTIONS_MANAGER
+        self.REGIONS_MANAGER = self.GAME_MANAGER.REGIONS_MANAGER
         self._current_actions_dict = self.ACTIONS_MANAGER.actions
         self._create_actions_menu(self.ACTIONS_MANAGER.actions)
 
@@ -122,6 +126,17 @@ class ActionsGUIManager(GameComponentManager):
                         action.deactivate()
                     else:
                         action.activate()
+                    pygame.event.post(
+                        Event(
+                            pysdgame.ActionEvent,
+                            {
+                                "action": action,
+                                "activated": action.activated,
+                                "region": self.REGIONS_MANAGER.selected_region,
+                            },
+                        )
+                    )
+
                     logger.info(
                         f"Action selected {self._current_actions_dict[name]}"
                     )
@@ -132,9 +147,9 @@ class ActionsGUIManager(GameComponentManager):
                     self._update_for_new_dict(self._current_actions_dict[name])
                 else:
                     logger.debug(f"Other event {event}")
-            case EventType(type=ActionEvent):
+            case EventType(type=pysdgame.ActionEvent):
                 # TODO: this will not work as overriding the ActionEvent value
-                print(ActionEvent)
+                print(pysdgame.ActionEvent)
                 logger.info(f"ActionEvent {event}")
             case _:
                 pass

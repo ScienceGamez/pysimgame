@@ -10,7 +10,7 @@ import time
 from functools import cached_property
 from queue import Queue
 from threading import Thread
-from typing import Any, Dict, List, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Type
 
 import pygame
 import pygame.display
@@ -32,7 +32,6 @@ from .regions_display import (
     RegionsManager,
     SingleRegionComponent,
 )
-from .types import RegionsDict
 from .utils import GameComponentManager, recursive_dict_missing_values
 from .utils.directories import (
     GAME_SETTINGS_FILENAME,
@@ -42,6 +41,10 @@ from .utils.directories import (
 )
 from .utils.logging import logger, logger_enter_exit
 from .utils.pysdgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
+
+if TYPE_CHECKING:
+    from .types import RegionsDict
+
 
 BACKGROUND_COLOR = "black"
 

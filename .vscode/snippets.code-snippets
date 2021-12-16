@@ -24,7 +24,7 @@
 	"Process events method": {
 		"scope": "python",
 		"prefix": "def process_events(",
-		"body": "def process_events(self, event: pygame.event.Event): \n\t\"\"\"Listen the events for this manager.\"\"\"\n\tmatch event:\n\t\tcase ... :",
+		"body": "def process_events(self, event: pygame.event.Event): \n\t\"\"\"Listen the events for this manager.\"\"\"\n\tmatch event:\n\t\tcase pygame.event.EventType(type=...) :",
 		"description": "A bone class for a component manager"
 	},
 }

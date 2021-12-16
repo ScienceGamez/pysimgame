@@ -79,7 +79,7 @@ class RegionComponent:
         logger.debug(f"Created Region Component {self}")
 
     def __repr__(self) -> str:
-        return "-".join(("Region", self.name))
+        return f"Region(name='{self.name}')"
 
     def to_dict(self) -> dict:
         """Return a dictionary representation of the region.
@@ -280,14 +280,15 @@ class RegionsManager(GameComponentManager):
 
         self._previous_hovered = None
         self._hovered_region = None
-        self._selected_region_str = None
 
         if len(self.REGIONS_DICT) > 1:
 
             self._previous_pressed = False
+            self._selected_region_str = None
 
         else:
             # Only one region
+            self._selected_region_str = list(self.REGIONS_DICT.keys())[0]
 
             def do_nothing(*args):
                 # Return False to avoid updating in the listen function

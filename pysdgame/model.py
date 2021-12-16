@@ -7,14 +7,17 @@ import re
 import shutil
 import threading
 from dataclasses import dataclass
-from functools import cached_property
+from functools import cached_property, singledispatchmethod
 from threading import Lock, Thread
+from types import NotImplementedType
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List
 
 import pandas as pd
 import pygame
 
-from pysdgame.actions.actions import Policy
+import pysdgame
+from pysdgame.actions.actions import BaseAction, Budget, Policy, Trigger
+from pysdgame.regions_display import RegionComponent
 from pysdgame.utils import GameComponentManager
 
 from .utils.logging import logger, logger_enter_exit
@@ -165,14 +168,26 @@ class ModelManager(GameComponentManager):
             elements_names.remove(val)
         return elements_names
 
+    @singledispatchmethod
     def __getitem__(self, key):
-        return self.models[key]
+        raise TypeError(f"Invalid key for type {type(key)}.")
+
+    @__getitem__.register
+    def _(self, region: str):
+        try:
+            return self.models[region]
+        except KeyError as keyerr:
+            print(self.GAME.REGIONS_DICT)
+            raise KeyError(f"{region} not in {self.models.keys()}")
+
+    @__getitem__.register
+    def _(self, region: RegionComponent):
+        return self[region.name]
 
     # endregion Properties
     # region Prepare
     def prepare(self):
 
-        self.GAME_MANAGER = self.GAME_MANAGER
         self._load_models()
         # Set the captured_elements
         self.capture_elements = None
@@ -289,7 +304,7 @@ class ModelManager(GameComponentManager):
 
     # endregion Prepare
 
-    # region Policies
+    # region Actions
     @logger_enter_exit()
     def apply_policies(self):
         """Apply the requested policies to all the requested regions."""
@@ -313,7 +328,7 @@ class ModelManager(GameComponentManager):
         old_method = getattr(model.components, method_name)
         setattr(model.components, method_name, new_method)
 
-    # endregion Policies
+    # endregion Actions
 
     def read_filepath(self) -> str:
         """Read a user given filepath and return it if exists."""
@@ -401,5 +416,44 @@ class ModelManager(GameComponentManager):
             logger.info(
                 f"Model step executed in {ms_step} ms, ticked {ms} ms."
             )
+
+    def process_events(self, event: pygame.event.Event):
+        """Listen the events for this manager."""
+        match event:
+
+            case pygame.event.EventType(type=pysdgame.ActionEvent):
+                logger.debug(f"Received action {event}")
+                self.process_action(event.action, event.region)
+            case _:
+                pass
+
+    @singledispatchmethod
+    def process_action(self, action: BaseAction, region: str):
+        """Process an action."""
+        return NotImplementedType
+
+    @process_action.register
+    def _(self, policy: Policy, region: str):
+        logger.info(f"processing policy {policy}")
+        if policy.activated:
+            for model_dependent_method in policy.actions:
+                # Iterate over all the methods from the actions
+                model = self[region]
+                attr_name, new_func = model_dependent_method(model)
+                logger.info(getattr(model.components, attr_name))
+                setattr(model.components, attr_name, new_func)
+                logger.info(getattr(model.components, attr_name))
+                logger.info(f"Setting {attr_name} of {model} to {new_func}")
+        else:  # not activated
+            logger.warn("Deactivate policy Not implmemented.")
+
+    @process_action.register
+    def _(self, action: Trigger, region: str):
+        logger.info(f"processing trigger {action}")
+
+    @process_action.register
+    def _(self, action: Budget, region: str):
+        # This is sent when the value of the budget is changed
+        logger.info(f"processing budget {action}")
 
     # endregion Run
