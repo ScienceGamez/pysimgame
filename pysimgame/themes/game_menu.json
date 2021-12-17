@@ -17,7 +17,7 @@
         "prototype": "#menu_overlay_buttons_style",
         "images": {
             "normal_image": {
-                "path": "pysdgame/themes/icons/menu.png"
+                "path": "pysimgame/themes/icons/menu.png"
             }
         }
     },
@@ -25,7 +25,7 @@
         "prototype": "#menu_overlay_buttons_style",
         "images": {
             "normal_image": {
-                "path": "pysdgame/themes/icons/help.png"
+                "path": "pysimgame/themes/icons/help.png"
             }
         }
     },
@@ -33,7 +33,7 @@
         "prototype": "#menu_overlay_buttons_style",
         "images": {
             "normal_image": {
-                "path": "pysdgame/themes/icons/plots.png"
+                "path": "pysimgame/themes/icons/plots.png"
             }
         }
     },
@@ -41,7 +41,7 @@
         "prototype": "#menu_overlay_buttons_style",
         "images": {
             "normal_image": {
-                "path": "pysdgame/themes/icons/stats.png"
+                "path": "pysimgame/themes/icons/stats.png"
             }
         }
     },
@@ -49,7 +49,7 @@
         "prototype": "#menu_overlay_buttons_style",
         "images": {
             "normal_image": {
-                "path": "pysdgame/themes/icons/regions.png"
+                "path": "pysimgame/themes/icons/regions.png"
             }
         }
     }

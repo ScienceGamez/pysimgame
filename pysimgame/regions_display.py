@@ -11,8 +11,8 @@ import pygame
 from pygame import Rect, Surface, draw, mouse
 from pygame.event import Event
 
-from pysdgame.utils import HINT_DISPLAY, GameComponentManager, logging
-from pysdgame.utils.directories import (
+from pysimgame.utils import HINT_DISPLAY, GameComponentManager, logging
+from pysimgame.utils.directories import (
     BACKGROUND_DIR_NAME,
     ORIGINAL_BACKGROUND_FILESTEM,
 )

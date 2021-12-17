@@ -8,10 +8,10 @@ from pygame_gui.ui_manager import UIManager
 from pygame_gui.elements import UIButton, UILabel, UITextBox
 
 if TYPE_CHECKING:
-    from pysdgame.model import ModelManager
-from pysdgame.utils import GameComponentManager
-from pysdgame.utils.dynamic_menu import UIColumnContainer
-from pysdgame.utils.logging import logger
+    from pysimgame.model import ModelManager
+from pysimgame.utils import GameComponentManager
+from pysimgame.utils.dynamic_menu import UIColumnContainer
+from pysimgame.utils.logging import logger
 
 
 class StatisticsDisplayManager(GameComponentManager):

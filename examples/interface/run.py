@@ -1,11 +1,10 @@
-import sys
 import os
+import sys
 
 # setting path
 sys.path.append(os.path.join("."))
 
-from pysdgame.game_manager import GameManager
-
+from pysimgame.game_manager import GameManager
 
 manager = GameManager("Test")
 

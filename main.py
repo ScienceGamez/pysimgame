@@ -1,4 +1,4 @@
-"""Open pysdgame main menu.
+"""Open pysimgame main menu.
 
 The main menu loop.
 """
@@ -14,21 +14,15 @@ from pygame_gui.elements import UIButton, UILabel, UITextEntryLine
 from pygame_gui.ui_manager import UIManager
 from pygame_gui.windows import UIColourPickerDialog
 
-from pysdgame import PYSDGAME_SETTINGS
-from pysdgame.game_manager import GameManager
-from pysdgame.new_game import error_popup, get_available_games, import_game
-from pysdgame.regions_display import (
-    RegionComponent,
-    validate_regions_dict,
-)
-from pysdgame.utils import logging
-from pysdgame.utils.directories import (
-    THEMES_DIR,
-    find_theme_file,
-)
-from pysdgame.utils.dynamic_menu import UIColumnContainer, UIFormLayout
-from pysdgame.utils.gui_utils import get_new_close_button, set_button_color
-from pysdgame.utils.logging import logger
+from pysimgame import PYSDGAME_SETTINGS
+from pysimgame.game_manager import GameManager
+from pysimgame.new_game import error_popup, get_available_games, import_game
+from pysimgame.regions_display import RegionComponent, validate_regions_dict
+from pysimgame.utils import logging
+from pysimgame.utils.directories import THEMES_DIR, find_theme_file
+from pysimgame.utils.dynamic_menu import UIColumnContainer, UIFormLayout
+from pysimgame.utils.gui_utils import get_new_close_button, set_button_color
+from pysimgame.utils.logging import logger
 
 FPS = PYSDGAME_SETTINGS["FPS"]
 
@@ -583,7 +577,7 @@ def start_import_model_loop() -> Union[str, None]:
         pygame.Rect(-250, -150, 200, 100),
         "Launch Import",
         UI_MANAGER,
-        tool_tip_text="Will try to import the model into pysdgame",
+        tool_tip_text="Will try to import the model into pysimgame",
         anchors={
             "left": "right",
             "right": "right",

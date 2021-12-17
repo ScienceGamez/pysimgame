@@ -28,15 +28,15 @@ from typing import (
 )
 
 import pygame
-import pysdgame
+import pysimgame
 from pygame.event import Event
-from pysdgame.utils import GameComponentManager
-from pysdgame.utils.logging import register_logger
+from pysimgame.utils import GameComponentManager
+from pysimgame.utils.logging import register_logger
 
 if TYPE_CHECKING:
-    from pysdgame.model import ModelManager
-    from pysdgame.regions_display import RegionComponent
-    from pysdgame.types import ModelType
+    from pysimgame.model import ModelManager
+    from pysimgame.regions_display import RegionComponent
+    from pysimgame.types import ModelType
 
 _ACTION_MANAGER: ActionsManager
 

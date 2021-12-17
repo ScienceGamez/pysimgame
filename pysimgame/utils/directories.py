@@ -1,17 +1,17 @@
 """Utility functions for handling directories."""
 import os
 import pathlib
-import pysdgame
 
+import pysimgame
 
 # TODO: check for linux and macos
 _app_data_dir = os.environ["APPDATA"]
 
-PYSDGAME_DIR = pathlib.PurePath(_app_data_dir, "pysdgame")
+PYSDGAME_DIR = pathlib.PurePath(_app_data_dir, "pysimgame")
 
 # Themes can be shared across the different games
 THEMES_DIR = os.path.join(PYSDGAME_DIR, "themes")
-DEFAULT_THEMES_DIR = os.path.join(*pysdgame.__path__, "themes")
+DEFAULT_THEMES_DIR = os.path.join(*pysimgame.__path__, "themes")
 
 SETTINGS_DIR = os.path.join(PYSDGAME_DIR, "settings")
 
@@ -26,7 +26,7 @@ ORIGINAL_BACKGROUND_FILESTEM = "orginal"
 GAME_SETTINGS_FILENAME = "settings.json"
 
 
-# Creates the pysdgame dir if not created
+# Creates the pysimgame dir if not created
 if not os.path.isdir(PYSDGAME_DIR):
     os.mkdir(PYSDGAME_DIR)
 if not os.path.isdir(THEMES_DIR):

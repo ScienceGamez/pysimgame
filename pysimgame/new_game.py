@@ -6,10 +6,10 @@ import logging
 from typing import Any, List
 
 from pygame import image
-import pysdgame
+import pysimgame
 from .types import RegionsDict
 from .utils.logging import logger
-from .utils.pysdgame_settings import PYSDGAME_SETTINGS
+from .utils.pysimgame_settings import PYSDGAME_SETTINGS
 
 from .utils.directories import (
     BACKGROUND_DIR_NAME,
@@ -54,31 +54,31 @@ def from_local_file(
 
 def parse_model_file(model_filepath: pathlib.Path, game_path: pathlib.Path):
     """Read the model file and parse it into python script using pysd."""
-    # Where pysdgame will store the model
+    # Where pysimgame will store the model
 
-    pysdgame_model_filepath = pathlib.Path(
+    pysimgame_model_filepath = pathlib.Path(
         game_path, MODEL_FILESTEM + model_filepath.suffix
     )
 
     shutil.copyfile(  # Copy to the new location
-        model_filepath, pysdgame_model_filepath
+        model_filepath, pysimgame_model_filepath
     )
 
     # Check which model type it is to parse it
-    if pysdgame_model_filepath.suffix == ".mdl":
+    if pysimgame_model_filepath.suffix == ".mdl":
         # Vensim model
         # Takes long to import so only if parsing is needed
         from pysd import read_vensim
 
         read_vensim(
-            str(pysdgame_model_filepath), initialize=False, split_views=True
+            str(pysimgame_model_filepath), initialize=False, split_views=True
         )
-    elif pysdgame_model_filepath.suffix == ".xmile":
+    elif pysimgame_model_filepath.suffix == ".xmile":
         # Xmile model
         from pysd import read_xmile
 
-        read_xmile(str(pysdgame_model_filepath), initialize=False)
-    elif pysdgame_model_filepath.suffix == ".py":
+        read_xmile(str(pysimgame_model_filepath), initialize=False)
+    elif pysimgame_model_filepath.suffix == ".py":
         # Python model
         pass
     else:
@@ -86,10 +86,10 @@ def parse_model_file(model_filepath: pathlib.Path, game_path: pathlib.Path):
             (
                 'Impossible to parse "{}".'
                 "Model not known. Only accepts .mdl, .py or .xmile files."
-            ).format(pysdgame_model_filepath)
+            ).format(pysimgame_model_filepath)
         )
     # Now that the file is a python file, we can directly read it
-    pysdgame_model_filepath = pysdgame_model_filepath.with_suffix(".py")
+    pysimgame_model_filepath = pysimgame_model_filepath.with_suffix(".py")
 
 
 def import_game(
@@ -164,8 +164,8 @@ def import_game(
             else img_size,
             # Whether the game has only one region
             "SingleRegion": len(regions_dict) == 1,
-            # Version of pysdgame
-            "pysdgame.__version__": pysdgame.__version__,
+            # Version of pysimgame
+            "pysimgame.__version__": pysimgame.__version__,
             # Version of the game
             "{}.__version__".format(game_name): version,
         }

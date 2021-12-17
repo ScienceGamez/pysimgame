@@ -12,16 +12,16 @@ from typing import TYPE_CHECKING
 import pygame
 from pygame.event import Event
 
-from pysdgame import PYSDGAME_SETTINGS
-from pysdgame.statistics import StatisticsDisplayManager
-from pysdgame.utils import GameComponentManager
-from pysdgame.utils.directories import THEMES_DIR
-from pysdgame.utils.dynamic_menu import UISettingsMenu
-from pysdgame.utils.logging import logger
+from pysimgame import PYSDGAME_SETTINGS
+from pysimgame.statistics import StatisticsDisplayManager
+from pysimgame.utils import GameComponentManager
+from pysimgame.utils.directories import THEMES_DIR
+from pysimgame.utils.dynamic_menu import UISettingsMenu
+from pysimgame.utils.logging import logger
 
 if TYPE_CHECKING:
-    from pysdgame.game_manager import GameManager
-    from pysdgame.plots import PlotsManager
+    from pysimgame.game_manager import GameManager
+    from pysimgame.plots import PlotsManager
 
 import pygame_gui
 from pygame_gui import UIManager

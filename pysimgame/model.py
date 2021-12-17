@@ -15,10 +15,10 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, List
 import pandas as pd
 import pygame
 
-import pysdgame
-from pysdgame.actions.actions import BaseAction, Budget, Policy, Trigger
-from pysdgame.regions_display import RegionComponent
-from pysdgame.utils import GameComponentManager
+import pysimgame
+from pysimgame.actions.actions import BaseAction, Budget, Policy, Trigger
+from pysimgame.regions_display import RegionComponent
+from pysimgame.utils import GameComponentManager
 
 from .utils.logging import logger, logger_enter_exit
 
@@ -421,7 +421,7 @@ class ModelManager(GameComponentManager):
         """Listen the events for this manager."""
         match event:
 
-            case pygame.event.EventType(type=pysdgame.ActionEvent):
+            case pygame.event.EventType(type=pysimgame.ActionEvent):
                 logger.debug(f"Received action {event}")
                 self.process_action(event.action, event.region)
             case _:

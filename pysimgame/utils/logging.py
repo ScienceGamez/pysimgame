@@ -2,7 +2,7 @@ import functools
 import logging
 from typing import Callable
 
-import pysdgame
+import pysimgame
 
 # Logging parameters
 formatter = logging.Formatter(
@@ -16,8 +16,8 @@ console.setFormatter(formatter)
 console2 = logging.StreamHandler()
 console2.setFormatter(location_formatter)
 
-logger = logging.getLogger(pysdgame.__name__)
-logger.setLevel(pysdgame.LOGGING_LEVEL)
+logger = logging.getLogger(pysimgame.__name__)
+logger.setLevel(pysimgame.LOGGING_LEVEL)
 
 
 def register_logger(logger: logging.Logger):

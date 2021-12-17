@@ -4,7 +4,7 @@
             "name": "PartyConfetti",
             "size": "20",
             "regular_resource": {
-                "package": "pysdgame.fonts",
+                "package": "pysimgame.fonts",
                 "resource": "PartyConfettiRegular-eZOn3.ttf"
             }
         }

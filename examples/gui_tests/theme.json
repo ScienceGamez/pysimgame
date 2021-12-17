@@ -1,42 +1,33 @@
 {
-    "#new_shape_style":
-    {
-       "misc":
-       {
-          "shape": "rectangle",
-          "border_width": "8",
-          "shadow_width": "3"
-       }
-    },
-
-    "button":
-    {
-       "prototype": "#new_shape_style",
-       "misc":{
+   "#new_shape_style": {
+      "misc": {
+         "shape": "rectangle",
+         "border_width": "8",
+         "shadow_width": "3"
+      }
+   },
+   "button": {
+      "prototype": "#new_shape_style",
+      "misc": {
          "border_width": "1",
          "toggled_border_width": "5",
          "toggled_shape": "ellipse"
-       },
-       "colours":
-         {
-             "normal_bg":"#FF9999",
-             "toggled_normal_bg":"#CCFFCC",
-             "hovered_bg":"#35393e"
-         },
-         "images":
-         {
-             "toggled_normal_image": {
-                 "path": "pysdgame/themes/icons/menu.png"
-             }
+      },
+      "colours": {
+         "normal_bg": "#FF9999",
+         "toggled_normal_bg": "#CCFFCC",
+         "hovered_bg": "#35393e"
+      },
+      "images": {
+         "toggled_normal_image": {
+            "path": "pysimgame/themes/icons/menu.png"
          }
-    },
-
-    "horizontal_slider":
-    {
-       "prototype": "#new_shape_style",
-       "misc":
-       {
-          "enable_arrow_buttons": 0
-       }
-    }
- }
+      }
+   },
+   "horizontal_slider": {
+      "prototype": "#new_shape_style",
+      "misc": {
+         "enable_arrow_buttons": 0
+      }
+   }
+}

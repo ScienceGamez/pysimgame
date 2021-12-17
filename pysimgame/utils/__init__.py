@@ -11,7 +11,7 @@ import pygame
 from pygame_gui.ui_manager import UIManager
 
 if TYPE_CHECKING:
-    from pysdgame.game_manager import Game, GameManager
+    from pysimgame.game_manager import Game, GameManager
 
 
 def recursive_dict_missing_values(dic_from: dict, dic_to: dict) -> dict:

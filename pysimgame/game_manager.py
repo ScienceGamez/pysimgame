@@ -19,10 +19,10 @@ import pygame_gui
 from pygame.event import Event
 from pygame_gui.ui_manager import UIManager
 
-from pysdgame.actions.actions import ActionsManager
-from pysdgame.actions.gui import ActionsGUIManager
-from pysdgame.statistics import StatisticsDisplayManager
-from pysdgame.utils import logging
+from pysimgame.actions.actions import ActionsManager
+from pysimgame.actions.gui import ActionsGUIManager
+from pysimgame.statistics import StatisticsDisplayManager
+from pysimgame.utils import logging
 
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .model import ModelManager, Policy
@@ -40,7 +40,7 @@ from .utils.directories import (
     REGIONS_FILE_NAME,
 )
 from .utils.logging import logger, logger_enter_exit
-from .utils.pysdgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
+from .utils.pysimgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
 
 if TYPE_CHECKING:
     from .types import RegionsDict

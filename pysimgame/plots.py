@@ -24,15 +24,15 @@ from pygame_matplotlib import pygame_color_to_plt
 from pygame_matplotlib.backend_pygame import FigureSurface
 from pygame_matplotlib.gui_window import UIPlotWindow
 
-from pysdgame.model import ModelManager
-from pysdgame.utils import GameComponentManager
-from pysdgame.utils.logging import logger
-from pysdgame.utils.strings import beautify_parameter_name
+from pysimgame.model import ModelManager
+from pysimgame.utils import GameComponentManager
+from pysimgame.utils.logging import logger
+from pysimgame.utils.strings import beautify_parameter_name
 
 from .utils.maths import normalize
 
 if TYPE_CHECKING:
-    from pysdgame.game_manager import GameManager
+    from pysimgame.game_manager import GameManager
     from .game_manager import GameManager
     import matplotlib
     import matplotlib.axes
@@ -48,7 +48,7 @@ Region: Type[str] = str
 
 
 class PysgamePlotWindow(UIPlotWindow):
-    """Attributes for a pysdgame plot."""
+    """Attributes for a pysimgame plot."""
 
     # Stores the info on what to plot
     regions: List[str]

@@ -1,14 +1,13 @@
+import os
+import sys
+
 import pygame
 import pygame_gui
-
-import sys
-import os
 
 # setting path
 sys.path.append(os.path.join("."))
 
-from pysdgame.utils.dynamic_menu import UISettingsMenu
-
+from pysimgame.utils.dynamic_menu import UISettingsMenu
 
 pygame.init()
 

@@ -5,22 +5,22 @@ from typing import TYPE_CHECKING
 
 import pygame
 import pygame_gui
-import pysdgame
+import pysimgame
 from pygame.event import Event, EventType, event_name
 from pygame_gui.elements import UIButton, UIWindow
 from pygame_gui.ui_manager import UIManager
-from pysdgame.actions.actions import ActionsDict, BaseAction
-from pysdgame.regions_display import RegionsManager
-from pysdgame.utils import GameComponentManager
-from pysdgame.utils.directories import THEME_FILENAME, THEMES_DIR
-from pysdgame.utils.dynamic_menu import UIColumnContainer
+from pysimgame.actions.actions import ActionsDict, BaseAction
+from pysimgame.regions_display import RegionsManager
+from pysimgame.utils import GameComponentManager
+from pysimgame.utils.directories import THEME_FILENAME, THEMES_DIR
+from pysimgame.utils.dynamic_menu import UIColumnContainer
 
 if TYPE_CHECKING:
     from .actions import ActionsManager
 
 import logging
 
-from pysdgame.utils.logging import register_logger
+from pysimgame.utils.logging import register_logger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -128,7 +128,7 @@ class ActionsGUIManager(GameComponentManager):
                         action.activate()
                     pygame.event.post(
                         Event(
-                            pysdgame.ActionEvent,
+                            pysimgame.ActionEvent,
                             {
                                 "action": action,
                                 "activated": action.activated,
@@ -147,9 +147,9 @@ class ActionsGUIManager(GameComponentManager):
                     self._update_for_new_dict(self._current_actions_dict[name])
                 else:
                     logger.debug(f"Other event {event}")
-            case EventType(type=pysdgame.ActionEvent):
+            case EventType(type=pysimgame.ActionEvent):
                 # TODO: this will not work as overriding the ActionEvent value
-                print(pysdgame.ActionEvent)
+                print(pysimgame.ActionEvent)
                 logger.info(f"ActionEvent {event}")
             case _:
                 pass

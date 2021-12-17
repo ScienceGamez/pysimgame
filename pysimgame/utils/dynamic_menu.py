@@ -16,7 +16,7 @@ from pygame_gui.elements.ui_button import UIButton
 from pygame_gui.elements.ui_horizontal_slider import UIHorizontalSlider
 from pygame_gui.elements.ui_label import UILabel
 from pygame_gui.windows import UIFileDialog
-from pysdgame.utils.logging import logger
+from pysimgame.utils.logging import logger
 
 
 class UIColumnContainer(UIScrollingContainer):

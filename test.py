@@ -1,4 +1,4 @@
-from pysdgame.game_manager import GameManager
+from pysimgame.game_manager import GameManager
 
 if __name__ == "__main__":
     GAME_MANAGER = GameManager()

@@ -1,14 +1,13 @@
+import os
+import sys
+
 import pygame
 import pygame_gui
-
-import sys
-import os
 
 # setting path
 sys.path.append(os.path.join("."))
 
-from pysdgame.utils.gui_utils import UI_TOGGLEBUTTON_TOGGLED, UIToggleButton
-
+from pysimgame.utils.gui_utils import UI_TOGGLEBUTTON_TOGGLED, UIToggleButton
 
 pygame.init()
 
