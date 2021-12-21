@@ -16,7 +16,7 @@ import pandas as pd
 import pygame
 
 import pysimgame
-from pysimgame.actions.actions import BaseAction, Budget, Policy, Trigger
+from pysimgame.actions.actions import BaseAction, Budget, Edict, Policy
 from pysimgame.regions_display import RegionComponent
 from pysimgame.utils import GameComponentManager
 
@@ -423,7 +423,12 @@ class ModelManager(GameComponentManager):
 
             case pygame.event.EventType(type=pysimgame.ActionEvent):
                 logger.debug(f"Received action {event}")
-                self.process_action(event.action, event.region)
+                if event.region is None:
+                    logger.warning(
+                        f"No region is selected for action {event.action.name}"
+                    )
+                else:
+                    self.process_action(event.action, event.region)
             case _:
                 pass
 
@@ -436,25 +441,32 @@ class ModelManager(GameComponentManager):
     def _(self, policy: Policy, region: str):
         logger.info(f"processing policy {policy}")
         if policy.activated:
-            for model_dependent_method in policy.actions:
-                # Iterate over all the methods from the actions
+            for model_dependent_method in policy.modifiers:
+                # Iterate over all the methods from the modifiers
                 model = self[region]
                 # NOTE: in pysd we need to set the components of the model object
                 attr_name, new_func = model_dependent_method(model.components)
-                logger.info(getattr(model.components, attr_name))
+                logger.debug(getattr(model.components, attr_name))
                 setattr(model.components, attr_name, new_func)
-                logger.info(getattr(model.components, attr_name))
-                logger.info(f"Setting {attr_name} of {model} to {new_func}")
+                logger.debug(getattr(model.components, attr_name))
+                logger.debug(f"Setting {attr_name} of {model} to {new_func}")
         else:  # not activated
             logger.warn("Deactivate policy Not implmemented.")
 
     @process_action.register
-    def _(self, action: Trigger, region: str):
-        logger.info(f"processing trigger {action}")
+    def _(self, action: Edict, region: str):
+        logger.info(f"processing Edict {action}")
 
     @process_action.register
-    def _(self, action: Budget, region: str):
+    def _register_budget(self, budget: Budget, region: str):
         # This is sent when the value of the budget is changed
-        logger.info(f"processing budget {action}")
+        v = budget.value
+
+        def budget_value():
+            return v
+
+        # simply set the function to the models components
+        setattr(self[region].components, budget.variable, budget_value)
+        logger.debug(f"Set {v} to {budget.variable}.")
 
     # endregion Run

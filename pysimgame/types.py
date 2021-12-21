@@ -7,9 +7,11 @@ if TYPE_CHECKING:
     from pysimgame.model import Policy
     from pysimgame.regions_display import RegionComponent
 
-    ModelType = TypeVar("Model")
+    ModelType = TypeVar("ModelType")
     # A model method must return a float and take no argument
-    ModelMethod = Callable[..., float]
+    ModelMethod = Callable[[], float]
+    # User model method is the one the user can implement having model as input
+    UserModelMethod = Callable[[ModelType], float]
     Polygon = List[Tuple[int, int]]
     RegionsDict = Dict[str, RegionComponent]
     POLICY_DICT = Dict[str, List[Policy]]

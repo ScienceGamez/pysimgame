@@ -24,6 +24,7 @@ class UIColumnContainer(UIScrollingContainer):
 
     Similar to usual forms layouts.
 
+
     :param vertical_spacing: Vertical spacing between the elements of
         the menu
     """
@@ -66,15 +67,26 @@ class UIColumnContainer(UIScrollingContainer):
         self._max_width = 0
 
     def add_row(self, *elements: UIElement):
-        """Add a UI element to the menu."""
-        this_position = self._next_position
+        """Add a UI element to the next line of the container.
 
-        max_height = 0  # Stores the height of the elements
+        Adding multiple times the same ui element object will result in
+        unexpected behaviour.
+        The relative rect of the element is important:
+            left: from the left side of the container
+            top: from the top of the current row
+            height: the height of the elements will be used to compute
+                row height
+        """
+        this_position = self._next_position
 
         for element in elements:
             element_rect = element.get_relative_rect()
+            # Position given by the user is relative to this
             element.set_relative_position(
-                (element.get_relative_rect().left, this_position)
+                (
+                    element_rect.left,
+                    this_position + element_rect.top,
+                )
             )
             # Adds the element to the container
             element._setup_container(self)
@@ -87,11 +99,11 @@ class UIColumnContainer(UIScrollingContainer):
                 self._max_width,
                 element_rect.width + element.get_relative_rect().left,
             )
-            max_height = max(max_height, element_rect.height)
 
         # Update for the next element
         self._next_position = (
-            this_position + max_height + self.vertical_spacing
+            max([element.get_relative_rect().bottom for element in elements])
+            + self.vertical_spacing
         )
 
         # Update the size of the scrollable area, which displays the menu

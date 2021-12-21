@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Dict, List
+
 import pygame
-from pygame_gui import elements
 import pygame_gui
+from pygame_gui import elements
+from pygame_gui.elements import UIButton, UILabel, UITextBox
 from pygame_gui.elements.ui_drop_down_menu import UIDropDownMenu
 from pygame_gui.ui_manager import UIManager
-from pygame_gui.elements import UIButton, UILabel, UITextBox
 
 if TYPE_CHECKING:
     from pysimgame.model import ModelManager
+
 from pysimgame.utils import GameComponentManager
 from pysimgame.utils.dynamic_menu import UIColumnContainer
 from pysimgame.utils.logging import logger
@@ -87,10 +90,9 @@ class StatisticsDisplayManager(GameComponentManager):
     def _create_line(self, name: str):
         """Create a line in the column container with the stat."""
         w, h = self.CONTAINER.get_container().get_size()
-        logger.debug(f"contaner size: {w,h}")
-        h = self._vertical_available_space / len(
-            self.MODEL_MANAGER.capture_elements
-        )
+        logger.debug(f"container size: {w,h}")
+        # Hard code the height or put in settings ?
+        h = 30
         logger.debug(f"height: {h}")
         doc = self.MODEL_MANAGER.doc
         button = UIButton(

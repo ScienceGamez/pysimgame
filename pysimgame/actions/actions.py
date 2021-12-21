@@ -51,9 +51,7 @@ class BaseAction:
     """Base class for all actions Classes."""
 
     name: str
-    actions: List[Callable]
     regions_available: List[str] = field(default_factory=list)
-    activated: bool = False
 
     def __post_init__(self) -> None:
         # Executed after the dataclass __init__
@@ -94,12 +92,12 @@ class BaseAction:
         self.activated = True
 
 
-def action_method(
+def modifier_method(
     function: Callable[[ModelType], Tuple[str, Callable[[], float]]],
 ) -> Callable[..., Tuple[str, Callable[[], float]]]:
-    """Decorate all actions methods.
+    """Decorate all modifiers methods.
 
-    All the actions method must return this.
+    All the modifiers method must return this.
 
     Does the cancer of this implementation makes it a beauty ?
     Or is it simply the ugliest way of nesting decorators when a better
@@ -107,8 +105,8 @@ def action_method(
     """
 
     @wraps(function)
-    # Function that is defined here, to help modder create actions.
-    def action_method_wrapper(
+    # Function that is defined here, to help modder create modifiers.
+    def modifier_method_wrapper(
         *args, **kwargs
     ) -> Callable[[ModelType], Tuple[str, Callable[[], float]]]:
         # function that will be called in the models manager
@@ -127,7 +125,7 @@ def action_method(
 
         return model_dependent_method
 
-    return action_method_wrapper
+    return modifier_method_wrapper
 
 
 @dataclass(kw_only=True)
@@ -137,9 +135,12 @@ class Policy(BaseAction):
     A policy can be activated or deactivated whenever the user wants it.
     """
 
+    modifiers: List[Callable]
+    activated: bool = False
+
 
 @dataclass(kw_only=True)
-class Trigger(BaseAction):
+class Edict(BaseAction):
     """Few step change applied to the model.
 
     The change disappear at the end of the n_steps.
@@ -150,16 +151,41 @@ class Trigger(BaseAction):
 
 @dataclass(kw_only=True)
 class Budget(BaseAction):
-    """A budget is a value that can be change by the user."""
+    """A budget is a value that can be changed by the user.
 
-    min: float
-    max: float
+    The initial value will be the one of the model.
+    Min and max value are either a float or a function if the max and
+    mix depend on the model.
+    The slider will be updated each step if either the min or max is variable.
+
+    .. note:
+        It is your responsability to ensure that max > min.
+    """
+
+    variable: str
+    min: Union[float, Callable[[ModelType], float]]
+    max: Union[float, Callable[[ModelType], float]]
+    value: float = 0
+
+    def get_min(self) -> float:
+        """Return the min."""
+        if callable(self.min):
+            return self.min()
+        else:
+            return self.min
+
+    def get_max(self) -> float:
+        """Return the max."""
+        if callable(self.max):
+            return self.max()
+        else:
+            return self.max
 
 
-@action_method
+@modifier_method
 def change_constant(
     constant_name: str, value: float
-) -> Tuple[str, Callable[ModelType, float]]:
+) -> Tuple[str, Callable[[ModelType], float]]:
     """Change the value of the constant."""
     # The function that will actually change the model.
     def new_constant(model):
@@ -169,10 +195,10 @@ def change_constant(
     return (constant_name, new_constant)
 
 
-@action_method
+@modifier_method
 def change_method(
     method_name: str, new_method: Callable
-) -> Tuple[str, Callable[ModelType, float]]:
+) -> Tuple[str, Callable[[ModelType], float]]:
     """Change a method of the model."""
     return (method_name, new_method)
 
@@ -205,6 +231,7 @@ class ActionsManager(GameComponentManager):
         actions_dir = pathlib.Path(self.GAME.GAME_DIR, "actions")
         actions_files = list(actions_dir.rglob("*.py"))
         logger.debug(f"Files: {actions_files}")
+        # TODO: make recursive implementation
         # TODO: see if we want to add security in the files loaded
         for file in actions_files:
             # Create a special name to not override attributes
@@ -218,6 +245,19 @@ class ActionsManager(GameComponentManager):
 
     def connect(self):
         self.MODEL_MANAGER = self.GAME_MANAGER.MODEL_MANAGER
+        self.REGIONS_MANAGER = self.GAME_MANAGER.REGIONS_MANAGER
 
-    def trigger(self, action: BaseAction):
-        """Trigger the action."""
+    def post_event(self, action: BaseAction):
+        """Post an event with the current action.
+
+        This should be used when an action is triggered by the user.
+        """
+        pygame.event.post(
+            Event(
+                pysimgame.ActionEvent,
+                {
+                    "action": action,
+                    "region": self.REGIONS_MANAGER.selected_region,
+                },
+            )
+        )

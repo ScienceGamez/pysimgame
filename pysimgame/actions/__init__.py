@@ -6,4 +6,4 @@ that a developper can and should use when modding the model of game.
 # Imports all action that the user can choose
 
 
-from .actions import Policy, change_constant, change_method
+from .actions import Budget, Edict, Policy, change_constant, change_method
