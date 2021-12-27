@@ -16,7 +16,8 @@ import pygame
 import pygame.display
 import pygame.font
 import pygame_gui
-from pygame.event import Event
+from pygame.constants import K_ESCAPE
+from pygame.event import Event, EventType
 from pygame_gui.ui_manager import UIManager
 
 from pysimgame.actions.actions import ActionsManager
@@ -416,12 +417,15 @@ class GameManager(GameComponentManager):
     def process_event(self, event: Event):
         logger.debug(f"Processing {event}")
         self.UI_MANAGER.process_events(event)
-        if event.type == pygame.QUIT:
-            self.MODEL_MANAGER.pause()
-            pygame.quit()
-            sys.exit()
-        elif event.type == pygame.TEXTINPUT:
-            self._process_textinput_event(event)
+        match event:
+            case EventType(type=pygame.QUIT) | EventType(
+                type=pygame.KEYDOWN, key=pygame.K_ESCAPE
+            ):
+                self.MODEL_MANAGER.pause()
+                pygame.quit()
+                sys.exit()
+            case EventType(type=pygame.TEXTINPUT):
+                self._process_textinput_event(event)
 
         for manager in self.MANAGERS.values():
             manager.process_events(event)

@@ -4,6 +4,7 @@ Modding
 
 PySimGame has been designed to be fully moddable.
 
+
 Nearly everything is written in `Python <https://www.python.org/>`_.
 It is an easy to learn language, which makes it available for
 begginers and it is also widely used in the scientific community.

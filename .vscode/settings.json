@@ -1,3 +1,4 @@
 {
-    "restructuredtext.confPath": "C:\\Users\\Lio\\Documents\\Demod\\demod\\docs\\source\\conf.py"
+    "restructuredtext.sphinxBuildPath": "docs/source",
+    "restructuredtext.confPath": "docs/source/conf.py"
 }

@@ -49,20 +49,22 @@ class StatisticsDisplayManager(GameComponentManager):
         container_size = self.CONTAINER.get_container().get_size()
         logger.debug(f"container size: {container_size}")
         self.REGIONS_HEIGTH = 40
-        self.drop_down = UIDropDownMenu(
-            regions,
-            starting_option=regions[0],
-            relative_rect=pygame.Rect(
-                0, 0, container_size[0], self.REGIONS_HEIGTH
-            ),
-            manager=self.UI_MANAGER,
-            container=self.CONTAINER,
-        )
+        if not self.GAME.SINGLE_REGION:
+            self.drop_down = UIDropDownMenu(
+                regions,
+                starting_option=regions[0],
+                relative_rect=pygame.Rect(
+                    0, 0, container_size[0], self.REGIONS_HEIGTH
+                ),
+                manager=self.UI_MANAGER,
+                container=self.CONTAINER,
+            )
+            # Adds a drop down to select the region
+            self.CONTAINER.add_row(self.drop_down)
         # Calculate the space that will be left for the elements
         self._vertical_available_space = (
             container_size[1] - self.REGIONS_HEIGTH
         )
-        self.CONTAINER.add_row(self.drop_down)
         # Empty dict to store all UI components
         self.buttons = {}
         self.labels = {}
@@ -117,7 +119,10 @@ class StatisticsDisplayManager(GameComponentManager):
 
     def _update_stats(self) -> None:
         # Get the model of the current region
-        model = self.MODEL_MANAGER.models[self.drop_down.selected_option]
+        if self.GAME.SINGLE_REGION:
+            model = self.MODEL_MANAGER._model
+        else:
+            model = self.MODEL_MANAGER.models[self.drop_down.selected_option]
         for element, label in self.labels.items():
             label.set_text("{:1.3f}".format(model[element]))
 
