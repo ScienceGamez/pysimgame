@@ -17,6 +17,9 @@
 # Python
 __pycache__
 
+# documentation builds
+docs/build
+
 # vscode
 *.code-workspace
 

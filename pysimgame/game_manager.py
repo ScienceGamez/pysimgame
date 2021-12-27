@@ -218,11 +218,11 @@ class GameManager(GameComponentManager):
             # Create a new pygame window if we don't know where to render
             main_display = pygame.display.set_mode(
                 # First check if they are some specific game settings available
-                self.game.SETTINGS.get(
-                    "Resolution",
-                    # Else check for PYSDGAME or set default
-                    PYSDGAME_SETTINGS.get("Resolution", (1080, 720)),
-                )
+                # self.game.SETTINGS.get(
+                #     "Resolution",
+                #     # Else check for PYSDGAME or set default
+                #     PYSDGAME_SETTINGS.get("Resolution", (1080, 720)),
+                # )
             )
         return main_display
 
