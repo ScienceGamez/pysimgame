@@ -8,6 +8,7 @@ import shutil
 import threading
 from dataclasses import dataclass
 from functools import cached_property, singledispatchmethod
+from pathlib import Path
 from threading import Lock, Thread
 from types import NotImplementedType
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List
@@ -79,9 +80,9 @@ class ModelManager(GameComponentManager):
         """
         collector = {}
         for name, varname in self._model.components._namespace.items():
-            if varname not in self.capture_elements:
-                # Ignore variable not in capture elements
-                continue
+            # if varname not in self.capture_elements:
+            #     # Ignore variable not in capture elements
+            #     continue
             try:
                 # TODO correct this when Original Eqn is in several lines
                 docstring: str
@@ -138,7 +139,7 @@ class ModelManager(GameComponentManager):
     @fps.setter
     def fps(self, new_fps: float):
         if new_fps < 0:
-            raise ValueError(f"FPS must be positive not {new_fps}.")
+            logger.error(f"FPS must be positive not {new_fps}.")
         else:
             self._fps = new_fps
 
@@ -287,12 +288,35 @@ class ModelManager(GameComponentManager):
 
     @capture_elements.setter
     def capture_elements(self, elements: List[str]):
+        """Capture elements are defined the following.
+
+        1. If you assign a list of element, it will be it.
+        2. If the capture elements file exists, it will be read.
+        3. Else will read from elements_names and process that, and
+            create the capture elements file.
+        """
         # Check which elements should be captured
         if elements is None:
-            # None captures all elements that are part of the model
-            elements = self.elements_names
+            elements_file = Path(self.GAME.GAME_DIR, "capture_elements.txt")
+            if elements_file.exists():
+                with open(elements_file, "r") as f:
+                    # Remove the end of line \n
+                    elements = [
+                        line[:-1] if line[-1] == "\n" else line
+                        for line in f.readlines()
+                    ]
+            else:
+                # None captures all elements that are part of the model
+                elements = self.elements_names
+                for element in elements.copy():
+                    # remove the lookup type elements from pysd
+                    # as they are just the "table function"
+                    if self.doc[element]["Type"] == "lookup":
+                        elements.remove(element)
+                with open(elements_file, "w") as f:
+                    f.writelines("\n".join(elements))
         self._capture_elements = elements
-        logger.info(f"Set captured elements: {elements}")
+        logger.debug(f"Set captured elements: {elements}")
 
     def connect(self):
         """Connect the components required by the Model Manager.
@@ -365,9 +389,13 @@ class ModelManager(GameComponentManager):
         self._save_current_elements()
         self.update()
 
+        event = pygame.event.Event(pysimgame.events.ModelStepped, {})
+        pygame.event.post(event)
+
     @logger_enter_exit(ignore_exit=True)
     def _save_current_elements(self):
         for region, model in self.models.items():
+            print(model.time(), region)
             self.outputs.at[model.time(), region] = [
                 getattr(model.components, key)()
                 for key in self.capture_elements
@@ -392,6 +420,8 @@ class ModelManager(GameComponentManager):
         """
         with Lock():
             self._paused = True
+        event = pygame.event.Event(pysimgame.events.Paused, {})
+        pygame.event.post(event)
         logger.info("Model paused.")
 
     def is_paused(self) -> bool:
@@ -421,7 +451,7 @@ class ModelManager(GameComponentManager):
         """Listen the events for this manager."""
         match event:
 
-            case pygame.event.EventType(type=pysimgame.ActionEvent):
+            case pygame.event.EventType(type=pysimgame.ActionUsed):
                 logger.debug(f"Received action {event}")
                 if event.region is None:
                     logger.warning(
@@ -429,6 +459,9 @@ class ModelManager(GameComponentManager):
                     )
                 else:
                     self.process_action(event.action, event.region)
+            case pygame.event.EventType(type=pysimgame.events.SpeedChanged):
+                self.fps = event.fps
+
             case _:
                 pass
 

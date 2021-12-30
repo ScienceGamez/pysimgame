@@ -27,4 +27,16 @@
 		"body": "def process_events(self, event: pygame.event.Event): \n\t\"\"\"Listen the events for this manager.\"\"\"\n\tmatch event:\n\t\tcase pygame.event.EventType(type=...) :",
 		"description": "A bone class for a component manager"
 	},
+	"case pysimgame Event": {
+		"scope": "python",
+		"prefix": "case pysimgame Event EventType",
+		"body": "case EventType(type=pysimgame.events.$0):\n\t",
+		"description": "Any pysimgame event"
+	},
+	"case Button Clicked": {
+		"scope": "python",
+		"prefix": "case Event EventType Button Clicked",
+		"body": "\tcase EventType(type=pygame.USEREVENT, user_type=pygame_gui.UI_BUTTON_PRESSED, ui_element=..., ui_object_id=...):\n\t\t...",
+		"description": "Case event is a button clicked"
+	},
 }

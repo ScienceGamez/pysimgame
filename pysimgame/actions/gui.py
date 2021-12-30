@@ -194,9 +194,9 @@ class ActionsGUIManager(GameComponentManager):
                     event.ui_element.action.value = event.value
                     self.ACTIONS_MANAGER.post_event(event.ui_element.action)
 
-            case EventType(type=pysimgame.ActionEvent):
-                print(pysimgame.ActionEvent)
-                logger.info(f"ActionEvent {event}")
+            case EventType(type=pysimgame.ActionUsed):
+                print(pysimgame.ActionUsed)
+                logger.info(f"ActionUsed {event}")
             case _:
                 pass
 

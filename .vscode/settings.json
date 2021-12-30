@@ -1,4 +1,4 @@
 {
     "restructuredtext.sphinxBuildPath": "docs/source",
-    "restructuredtext.confPath": "docs/source/conf.py"
+    "restructuredtext.confPath": "docs\\source\\conf.py"
 }

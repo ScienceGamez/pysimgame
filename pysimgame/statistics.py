@@ -96,14 +96,25 @@ class StatisticsDisplayManager(GameComponentManager):
         # Hard code the height or put in settings ?
         h = 30
         logger.debug(f"height: {h}")
-        doc = self.MODEL_MANAGER.doc
+        doc = self.MODEL_MANAGER.doc[name]
         button = UIButton(
             pygame.Rect(0, 0, w * 0.7, h),
-            text=doc[name].get("Real Name"),
+            text=doc.get("Real Name"),
             manager=self.UI_MANAGER,
             container=self.CONTAINER,
             allow_double_clicks=True,
-            tool_tip_text=str(self.MODEL_MANAGER.doc[name]),
+            # I tried to htmlify the message but it seems to not take into
+            # account the all the format.
+            tool_tip_text='</div><br><br><div align = "left">'.join(
+                (
+                    f'<div align = "left"><p><big>Unit</big>:<br>'
+                    f' {doc.get("Unit")} </p>',
+                    f"<p><big>Description</big>:<br>"
+                    f'{doc.get("Comment")} </p>',
+                    f"<p><big>Equation</big>:<br> "
+                    f"{doc.get('Eqn')} </p> </div>",
+                )
+            ),
         )
         # Set a special attribute to buttons, recalling the variable
         value_label = UILabel(

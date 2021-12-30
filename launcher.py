@@ -1,5 +1,6 @@
 """Open pysimgame main menu.
 
+This is the launcher script for the game.
 The main menu loop.
 """
 import os

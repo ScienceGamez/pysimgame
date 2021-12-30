@@ -1,15 +1,15 @@
 """Module for creating new games."""
+from __future__ import annotations
+
 import json
+import logging
 import pathlib
 import shutil
-import logging
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List
 
 from pygame import image
+
 import pysimgame
-from .types import RegionsDict
-from .utils.logging import logger
-from .utils.pysimgame_settings import PYSDGAME_SETTINGS
 
 from .utils.directories import (
     BACKGROUND_DIR_NAME,
@@ -19,6 +19,11 @@ from .utils.directories import (
     PYSDGAME_DIR,
     REGIONS_FILE_NAME,
 )
+from .utils.logging import logger
+from .utils.pysimgame_settings import PYSDGAME_SETTINGS
+
+if TYPE_CHECKING:
+    from .types import RegionsDict
 
 
 def error_popup(msg: str):

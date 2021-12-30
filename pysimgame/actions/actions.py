@@ -254,7 +254,7 @@ class ActionsManager(GameComponentManager):
         """
         pygame.event.post(
             Event(
-                pysimgame.ActionEvent,
+                pysimgame.ActionUsed,
                 {
                     "action": action,
                     "region": self.REGIONS_MANAGER.selected_region,

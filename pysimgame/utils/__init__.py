@@ -130,6 +130,8 @@ class GameComponentManager(ABC):
         The method specified will be called after the manager has done
         an update of something internally (update() returns True).
 
+        Warning: should use events instead !
+
         :param other_manager: The manager to be listened.
         :param method: The method to be called after the update.
         :param threaded: Whether to call the method on a separated thread.

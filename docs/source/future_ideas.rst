@@ -28,3 +28,10 @@ Games
 Technical improvements:
 
 UIHorizontalSlider should send moved event only at the end of the movement.
+
+Make a loading screen for importing model.
+
+Make an abstract model manager and one dedicated to pysd models instead of
+pysd being the main one.
+
+Make it possible for each region to simulate a different model type.

@@ -20,8 +20,10 @@ from pygame.constants import K_ESCAPE
 from pygame.event import Event, EventType
 from pygame_gui.ui_manager import UIManager
 
+import pysimgame
 from pysimgame.actions.actions import ActionsManager
 from pysimgame.actions.gui import ActionsGUIManager
+from pysimgame.speed import SpeedManager
 from pysimgame.statistics import StatisticsDisplayManager
 from pysimgame.utils import logging
 
@@ -189,6 +191,7 @@ class GameManager(GameComponentManager):
             ActionsGUIManager,
             StatisticsDisplayManager,
             ActionsManager,
+            SpeedManager,
         ]
         self.MANAGERS = {}
 
@@ -219,11 +222,11 @@ class GameManager(GameComponentManager):
             # Create a new pygame window if we don't know where to render
             main_display = pygame.display.set_mode(
                 # First check if they are some specific game settings available
-                # self.game.SETTINGS.get(
-                #     "Resolution",
-                #     # Else check for PYSDGAME or set default
-                #     PYSDGAME_SETTINGS.get("Resolution", (1080, 720)),
-                # )
+                self.game.SETTINGS.get(
+                    "Resolution",
+                    # Else check for PYSDGAME or set default
+                    PYSDGAME_SETTINGS.get("Resolution", (1080, 720)),
+                )
             )
         return main_display
 
@@ -335,7 +338,11 @@ class GameManager(GameComponentManager):
             events = pygame.event.get()
             # Look for quit events
             for event in events:
-                if event.type == pygame.QUIT:
+                if event.type == pygame.QUIT or (
+                    event.type == pygame.KEYDOWN
+                    and event.key == pygame.K_ESCAPE
+                ):
+                    print("Quit")
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.USEREVENT:
@@ -426,6 +433,8 @@ class GameManager(GameComponentManager):
                 sys.exit()
             case EventType(type=pygame.TEXTINPUT):
                 self._process_textinput_event(event)
+            case EventType(type=pysimgame.events.TogglePaused):
+                self.change_model_pause_state()
 
         for manager in self.MANAGERS.values():
             manager.process_events(event)
@@ -440,6 +449,9 @@ class GameManager(GameComponentManager):
             logger.warn(f"{self.MODEL_THREAD} is still running.")
             return
         self.MODEL_THREAD.join()
+
+        event = pygame.event.Event(pysimgame.events.UnPaused, {})
+        pygame.event.post(event)
         self.MODEL_THREAD = Thread(
             target=self.MODEL_MANAGER.run,
             # Make it a deamon so it stops when the main thread raises error
