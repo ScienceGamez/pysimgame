@@ -8,7 +8,13 @@ TODO: make sure it should work this way, maybe other variables want to use t-1
 """
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, List
+
+from pysimgame.utils.logging import register_logger
+
+logger = logging.getLogger(__name__)
+register_logger(logger)
 
 if TYPE_CHECKING:
     from pysimgame.types import ImportExportMethod, ModelType
@@ -84,16 +90,16 @@ def fulfil_imports(
             key=preference_values.__getitem__,
             reverse=not reverse,  # Sort from most needing by default
         )
-        print(f"Steps {total_export = }")
+        logger.debug(f"Steps {total_export = }")
         imports = [0.0 for _ in models]
         while argsorted_values and total_export > 0:
             index = argsorted_values.pop(0)
             required = original_import_methods[index]()
-            print(f"{index = }, {required = }")
+            logger.debug(f"{index = }, {required = }")
             imports[index] = min(required, total_export)
             # updates the exports left
             total_export -= required
-        print(f"Steps {imports = }")
+        logger.debug(f"Steps {imports = }")
         return imports
 
     return import_export_method
