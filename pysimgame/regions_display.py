@@ -11,6 +11,7 @@ import pygame
 from pygame import Rect, Surface, draw, mouse
 from pygame.event import Event
 
+from pysimgame.events import RegionFocusChanged
 from pysimgame.utils import HINT_DISPLAY, GameComponentManager, logging
 from pysimgame.utils.directories import (
     BACKGROUND_DIR_NAME,
@@ -25,13 +26,10 @@ if TYPE_CHECKING:
 
 _REGION_COUNTER = 0
 
-# Special event type: attr: {}
-REGION_SELECTED_EVENT = pygame.event.custom_type()
-
 
 def post_even_region_selected(region: RegionComponent) -> None:
     """Post an event of selection of a Region."""
-    event = Event(REGION_SELECTED_EVENT, {"region": region})
+    event = Event(RegionFocusChanged, {"region": region})
     pygame.event.post(event)
 
 
@@ -382,7 +380,7 @@ class RegionsManager(GameComponentManager):
         """Listen to mouse clicks and movement.
 
         When a region is clicked, it should become the selected region.
-        Throw a :var:`REGION_SELECTED_EVENT` when a region is selected.
+        Throw a :var:`RegionFocusChanged` when a region is selected.
 
         The earth view surface listens for the following:
             * Hovering a region
@@ -407,9 +405,7 @@ class RegionsManager(GameComponentManager):
         if clicked:
             # Select the clicked region
             self.selected_region = hovered_region
-            event = Event(
-                REGION_SELECTED_EVENT, {"region": self.selected_region}
-            )
+            event = Event(RegionFocusChanged, {"region": self.selected_region})
             pygame.event.post(event)
             logger.info(f"Selected Region {self.selected_region}")
 

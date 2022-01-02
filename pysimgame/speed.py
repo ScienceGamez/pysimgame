@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple
 
 import pygame
 import pygame_gui
+from pygame.constants import TEXTINPUT
 from pygame.event import EventType
 from pygame_gui.core import UIContainer
 from pygame_gui.elements import UIButton, UITextBox
@@ -86,33 +87,58 @@ class SpeedManager(GameComponentManager):
         self.MODEL_MANAGER = self.GAME_MANAGER.MODEL_MANAGER
         self._base_fps = self.MODEL_MANAGER.fps
 
+    def increase_speed(self):
+        """Increase the speed.
+
+        1 step in the available speeds.
+        """
+        # Gets the current speed
+        ind = self.available_speeds.index(self.speed)
+        if ind < len(self.available_speeds) - 1:
+            # Calculate the new speed index (assume sorted)
+            self.speed = self.available_speeds[int(ind + 1)]
+            self.post_changed_speed()
+
+    def decrease_speed(self):
+        """Decrease the speed.
+
+        1 step in the available speeds.
+        """
+        # Gets the current speed
+        ind = self.available_speeds.index(self.speed)
+        if ind > 0:
+            # Calculate the new speed index (assume sorted)
+            self.speed = self.available_speeds[int(ind - 1)]
+            self.post_changed_speed()
+
+    def post_changed_speed(self):
+        # post event
+        event = pygame.event.Event(
+            pysimgame.events.SpeedChanged,
+            {"fps": self._base_fps * self.speed},
+        )
+        pygame.event.post(event)
+
     def process_events(self, event: pygame.event.Event):
         """Listen the events for this manager."""
-        print(event)
         match event:
-            case EventType(
-                type=pygame.USEREVENT,
-                user_type=pygame_gui.UI_BUTTON_PRESSED,
-                ui_element=self.faster_button | self.slower_button,
-            ):
-                # Gets the current speed
-                ind = self.available_speeds.index(self.speed)
-                # Calculate the new speed index (assume sorted)
-                ind += 1 if event.ui_element is self.faster_button else -1
-                ind = int(max(0, min(ind, len(self.available_speeds) - 1)))
-                self.speed = self.available_speeds[ind]
 
-                # post event
-                event = pygame.event.Event(
-                    pysimgame.events.SpeedChanged,
-                    {"fps": self._base_fps * self.speed},
-                )
-                pygame.event.post(event)
+            case EventType(
+                type=pygame_gui.UI_BUTTON_PRESSED,
+                ui_element=self.faster_button,
+            ) | EventType(type=pygame.TEXTINPUT, text="+"):
+                self.increase_speed()
+
+            case EventType(
+                type=pygame_gui.UI_BUTTON_PRESSED,
+                ui_element=self.slower_button,
+            ) | EventType(type=pygame.TEXTINPUT, text="-"):
+                self.decrease_speed()
+
             case EventType(type=pysimgame.events.SpeedChanged):
                 self.speed_label.set_text(f"{self.speed} X")
             case EventType(
-                type=pygame.USEREVENT,
-                user_type=pygame_gui.UI_BUTTON_PRESSED,
+                type=pygame_gui.UI_BUTTON_PRESSED,
                 ui_element=self.play_button,
             ):
                 # Change the pause state

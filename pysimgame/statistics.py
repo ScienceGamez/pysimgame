@@ -146,7 +146,10 @@ class StatisticsDisplayManager(GameComponentManager):
         match event:
             case EventType(type=pysimgame.events.RegionFocusChanged):
                 region: RegionComponent = event.region
-                if self.drop_down.selected_option != region.name:
+                if (
+                    region is not None
+                    and self.drop_down.selected_option != region.name
+                ):
                     self.drop_down.selected_option = region.name
                     self._update_stats()
             case EventType(

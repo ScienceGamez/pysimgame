@@ -1,7 +1,11 @@
-if TYPE_CHECKING:
-    from typing import TYPE_CHECKING, Callable, List
+from __future__ import annotations
 
-    from pysimgame.types import ImportExportMethod, ModelType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Callable, List
+
+    from pysimgame.types import ImportExportMethod
 
 
 def regions_sum(input_variable: str, output_variable: str) -> None:

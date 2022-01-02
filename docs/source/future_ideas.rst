@@ -35,3 +35,5 @@ Make an abstract model manager and one dedicated to pysd models instead of
 pysd being the main one.
 
 Make it possible for each region to simulate a different model type.
+
+Add a 'Values' logging level

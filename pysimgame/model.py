@@ -63,6 +63,11 @@ class ModelManager(GameComponentManager):
     fps: float
     doc: pd.DataFrame
 
+    # Stores some functions that will be called before the step
+    _presteps_calls: List[Callable[[], None]] = []
+
+    _import_exports_dic: Dict = {}
+
     # region Properties
     @property
     def model(self) -> ModelType:
@@ -397,19 +402,23 @@ class ModelManager(GameComponentManager):
         self,
         export_variable: str,
         import_variable: str,
-        func: Callable[[List[ModelType]], List[float]],
+        export_method: Callable[[str, str, List[ModelType]], List[float]],
     ) -> None:
         """Link import export variable to the model."""
 
-        def compute_output():
-            return func([model.components for model in self.models.values()])
+        def compute_import():
+            import_values = export_method(
+                export_variable,
+                import_variable,
+                [model.components for model in self.models.values()],
+            )
+            self.logger.debug(f"{import_values = }")
+            for model, val in zip(self.models.values(), import_values):
+                # The import variable is the one computed
+                setattr(model.components, import_variable, lambda: val)
 
-        total_import = sum(
-            [
-                getattr(model.components, export_variable)()
-                for model in self.models.values()
-            ]
-        )
+        # The output is computed before every step
+        self._presteps_calls.append(compute_import)
 
     # endregion Links
     # endregion Prepare
@@ -423,7 +432,10 @@ class ModelManager(GameComponentManager):
         TODO: Fix that the first step is the same as intialization.
         """
 
-        # Run each of the models
+        for f in self._presteps_calls:
+            f()
+
+        # Update the steps
         self.current_time += self.time_step
         self.current_step += 1
 
