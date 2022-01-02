@@ -43,7 +43,7 @@ def weighted_average(weighted_attribute: str) -> ImportExportMethod:
     return import_export_method
 
 
-def fullfill_imports(
+def fulfil_imports(
     preference: str, reverse: bool = False
 ) -> ImportExportMethod:
     """Try to fulfil the import values.
@@ -82,7 +82,7 @@ def fullfill_imports(
         argsorted_values = sorted(
             range(len(models)),
             key=preference_values.__getitem__,
-            reverse=reverse,
+            reverse=not reverse,  # Sort from most needing by default
         )
         print(f"Steps {total_export = }")
         imports = [0.0 for _ in models]
