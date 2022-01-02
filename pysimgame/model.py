@@ -17,7 +17,10 @@ import pandas as pd
 import pygame
 
 import pysimgame
+from pysimgame import links
 from pysimgame.actions.actions import BaseAction, Budget, Edict, Policy
+from pysimgame.links.manager import BaseLink
+from pysimgame.links.shared_variables import SharedVariables
 from pysimgame.regions_display import RegionComponent
 from pysimgame.utils import GameComponentManager
 
@@ -28,7 +31,7 @@ if TYPE_CHECKING:
 
     from .game_manager import GameManager
     from .plots import PlotsManager
-    from .types import POLICY_DICT
+    from .types import POLICY_DICT, ModelType
 
 
 POLICY_PREFIX = "policy_"
@@ -61,6 +64,13 @@ class ModelManager(GameComponentManager):
     doc: pd.DataFrame
 
     # region Properties
+    @property
+    def model(self) -> ModelType:
+        if not hasattr(self, "_model"):
+            self._load_models()
+
+        return self._model.components
+
     @cached_property
     def doc(self) -> Dict[str, Dict[str, str]]:
         """Return the documentation of each component.
@@ -152,9 +162,7 @@ class ModelManager(GameComponentManager):
         """
         if self._elements_names is None:
             # Reads the first models components
-            self._elements_names = list(
-                list(self.models.values())[0].components._namespace.values()
-            )
+            self._elements_names = list(self.model._namespace.values())
             logger.debug(
                 f"All the model.components elements: {self._elements_names}"
             )
@@ -326,44 +334,85 @@ class ModelManager(GameComponentManager):
         """
         self.PLOTS_MANAGER = self.GAME_MANAGER.PLOTS_MANAGER
 
+    # region Links
+    @singledispatchmethod
+    def process_link(self, link: BaseLink):
+        """Process an action."""
+        return NotImplementedType
+
+    def link_shared_variables(self, shared_variables: SharedVariables):
+        """Link the shared variables in the model.
+
+        .. note:: One of the regions will have its model being 'shared'.
+            s.t. the 'shared' variables will be the method of one of the model.
+        """
+        for var in shared_variables.variables:
+            # Finds the method in the 'shared' model
+            self._share_method(var)
+
+    def _share_method(self, variable: str):
+        def _shared_method():
+            # This will always call the method called with the variable
+            # name, so if it is modified, it will be for all models.
+            return getattr(self.model, variable)()
+
+        for model in self.models.values():
+
+            if model.components == self.model:
+                # The "shared" model keeps the original method
+                continue
+            setattr(model.components, variable, _shared_method)
+
+    def link_region_sum(self, input_variable: str, output_variable: str):
+        """Link a region sum variable for the model."""
+
+        def _summed_method():
+            _sum = 0
+            for model in self.models.values():
+                # Adds to the sum
+                _sum += getattr(model.components, input_variable)()
+            return _sum
+
+        # Add the variable to the models
+        setattr(self.model, output_variable, _summed_method)
+        # Add it to shared variable
+        self._share_method(output_variable)
+
+    def link_region_average(self, input_variable: str, output_variable: str):
+        """Link a region average variable for the model."""
+
+        def _average_method():
+            _sum = 0
+            for model in self.models.values():
+                # Adds to the sum
+                _sum += getattr(model.components, input_variable)()
+            return _sum / len(self.models)
+
+        # Add the variable to the models
+        setattr(self.model, output_variable, _average_method)
+        # Add it to shared variable
+        self._share_method(output_variable)
+
+    def link_import_export(
+        self,
+        export_variable: str,
+        import_variable: str,
+        func: Callable[[List[ModelType]], List[float]],
+    ) -> None:
+        """Link import export variable to the model."""
+
+        def compute_output():
+            return func([model.components for model in self.models.values()])
+
+        total_import = sum(
+            [
+                getattr(model.components, export_variable)()
+                for model in self.models.values()
+            ]
+        )
+
+    # endregion Links
     # endregion Prepare
-
-    # region Actions
-    @logger_enter_exit()
-    def apply_policies(self):
-        """Apply the requested policies to all the requested regions."""
-        while not self.GAME_MANAGER.policy_queue.empty():
-            # Get the next policy in the queue
-            policy = self.GAME_MANAGER.policy_queue.get()
-            logger.info(f"apply_policy: {policy}")
-            # Access the correct region
-
-            self._apply_policy(policy)
-
-    @logger_enter_exit(level=logging.INFO, with_args=True, ignore_exit=True)
-    def _apply_policy(self, policy: Policy):
-        """Apply the policy to the model (replacing the function)."""
-        model = self.models[policy.region]
-        new_method = getattr(model.components, POLICY_PREFIX + policy.name)
-        # Removes the prefix and policy name
-        method_name = "_".join(policy.name.split("_")[1:])
-        # TODO: Apply all the functions corresponding to that policy
-        # Now: only apply the one policy
-        old_method = getattr(model.components, method_name)
-        setattr(model.components, method_name, new_method)
-
-    # endregion Actions
-
-    def read_filepath(self) -> str:
-        """Read a user given filepath and return it if exists."""
-        filepath = input("Enter filepath of the PySD model you want to use : ")
-        if os.path.isfile(filepath):
-            return filepath
-        else:
-            # Prompt again
-            print("File not found : ", filepath)
-            print("Try again.")
-            return self.read_filepath()
 
     # region Run
     @logger_enter_exit(ignore_exit=True)
@@ -373,8 +422,7 @@ class ModelManager(GameComponentManager):
         Update all regions.
         TODO: Fix that the first step is the same as intialization.
         """
-        # Apply the policies
-        self.apply_policies()
+
         # Run each of the models
         self.current_time += self.time_step
         self.current_step += 1
@@ -465,6 +513,8 @@ class ModelManager(GameComponentManager):
             case _:
                 pass
 
+    # region Actions
+
     @singledispatchmethod
     def process_action(self, action: BaseAction, region: str):
         """Process an action."""
@@ -502,4 +552,5 @@ class ModelManager(GameComponentManager):
         setattr(self[region].components, budget.variable, budget_value)
         logger.debug(f"Set {v} to {budget.variable}.")
 
+    # endregion Actions
     # endregion Run

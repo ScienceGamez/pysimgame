@@ -437,8 +437,11 @@ class RegionsManager(GameComponentManager):
         self.REGION_SURFACE.fill((250, 250, 250, 0))
         for region in self.REGIONS_DICT.values():
             if region == self._hovered_region:
-                region.show_hovered()
+                # region.show_hovered()
+                region.show()
             elif region == self.selected_region:
-                region.show_selected()
+                # region.show_selected()
+                region.show()
             else:
-                region.show_idle()
+                # region.show_idle()
+                region.show()

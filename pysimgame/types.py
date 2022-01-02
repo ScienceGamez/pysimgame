@@ -15,3 +15,5 @@ if TYPE_CHECKING:
     Polygon = List[Tuple[int, int]]
     RegionsDict = Dict[str, RegionComponent]
     POLICY_DICT = Dict[str, List[Policy]]
+
+    ImportExportMethod = Callable[[List[ModelType]], List[float]]

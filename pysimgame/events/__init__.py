@@ -4,6 +4,9 @@ Custom pygame events declaration for pysimgame.
 """
 import pygame
 
+# When another region is selected
+# {'region': RegionComponent, ?}
+RegionFocusChanged = pygame.event.custom_type()
 # When an action is trigger
 # {'action', ?}
 ActionUsed = pygame.event.custom_type()

@@ -23,6 +23,7 @@ from pygame_gui.ui_manager import UIManager
 import pysimgame
 from pysimgame.actions.actions import ActionsManager
 from pysimgame.actions.gui import ActionsGUIManager
+from pysimgame.links.manager import LinksManager
 from pysimgame.speed import SpeedManager
 from pysimgame.statistics import StatisticsDisplayManager
 from pysimgame.utils import logging
@@ -192,6 +193,7 @@ class GameManager(GameComponentManager):
             StatisticsDisplayManager,
             ActionsManager,
             SpeedManager,
+            LinksManager,
         ]
         self.MANAGERS = {}
 

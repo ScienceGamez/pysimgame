@@ -1,7 +1,6 @@
 """Utility module."""
 from __future__ import annotations
 
-import logging
 import threading
 from abc import ABC, abstractmethod
 from functools import wraps
@@ -9,6 +8,8 @@ from typing import TYPE_CHECKING, Callable, Tuple
 
 import pygame
 from pygame_gui.ui_manager import UIManager
+
+from .logging import logging
 
 if TYPE_CHECKING:
     from pysimgame.game_manager import Game, GameManager
@@ -70,15 +71,21 @@ class GameComponentManager(ABC):
 
     GAME_MANAGER: GameManager
     GAME: Game
+    # A logger object for logging purposes
+    logger: logging.Logger
     # Optional attribute
     UI_MANAGER: UIManager
 
     def __init__(self, GAME_MANAGER: GameManager) -> None:
+
         self.GAME_MANAGER = GAME_MANAGER
         self.GAME = GAME_MANAGER.GAME
 
+        # Create the logger with the name of the component
+        self.logger = logging.getLogger(type(self).__name__)
+
     def __str__(self) -> str:
-        return f"{self.__name__} for '{self.GAME_MANAGER.game.NAME}'"
+        return f"{type(self).__name__} for {self.GAME_MANAGER.game.NAME}"
 
     @abstractmethod
     def prepare(self):

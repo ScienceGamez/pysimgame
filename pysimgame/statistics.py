@@ -4,10 +4,14 @@ from typing import TYPE_CHECKING, Dict, List
 
 import pygame
 import pygame_gui
+from pygame.event import EventType
 from pygame_gui import elements
 from pygame_gui.elements import UIButton, UILabel, UITextBox
 from pygame_gui.elements.ui_drop_down_menu import UIDropDownMenu
 from pygame_gui.ui_manager import UIManager
+
+import pysimgame
+from pysimgame.regions_display import RegionComponent
 
 if TYPE_CHECKING:
     from pysimgame.model import ModelManager
@@ -32,7 +36,7 @@ class StatisticsDisplayManager(GameComponentManager):
             main_size,
             self.GAME.SETTINGS["Themes"].get("Statistics", None),
         )
-        logger.debug(f"MAINT diplay size: {main_size}")
+        logger.debug(f"MAIN diplay size: {main_size}")
         colomun_width = 0.25
         menu_height = 0.07
         self.CONTAINER = UIColumnContainer(
@@ -139,7 +143,26 @@ class StatisticsDisplayManager(GameComponentManager):
 
     def process_events(self, event: pygame.event.Event):
         self.UI_MANAGER.process_events(event)
-
+        match event:
+            case EventType(type=pysimgame.events.RegionFocusChanged):
+                region: RegionComponent = event.region
+                if self.drop_down.selected_option != region.name:
+                    self.drop_down.selected_option = region.name
+                    self._update_stats()
+            case EventType(
+                type=pygame.USEREVENT,
+                user_type=pygame_gui.UI_DROP_DOWN_MENU_CHANGED,
+                ui_element=self.drop_down,
+            ):
+                # Drop down has been changed by the user
+                new_region = event.text
+                event = pygame.event.Event(
+                    pysimgame.events.RegionFocusChanged,
+                    {"region": self.GAME.REGIONS_DICT.get(new_region, None)},
+                )
+                pygame.event.post(event)
+                # Update the statistics directly
+                self._update_stats()
         if (
             event.type == pygame.USEREVENT
             and event.user_type == pygame_gui.UI_BUTTON_DOUBLE_CLICKED

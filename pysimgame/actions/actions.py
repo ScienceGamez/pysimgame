@@ -231,10 +231,11 @@ class ActionsManager(GameComponentManager):
         actions_dir = pathlib.Path(self.GAME.GAME_DIR, "actions")
         actions_files = list(actions_dir.rglob("*.py"))
         logger.debug(f"Files: {actions_files}")
-        # TODO: make recursive implementation
+
         # TODO: see if we want to add security in the files loaded
         for file in actions_files:
             # Create a special name to not override attributes
+            # TODO: make recursive implementation
             module_name = f"user_actions.{file.stem}"
             # Save the current module as Action object register themselfs
             # using it. Note that this would not be thread safe !
