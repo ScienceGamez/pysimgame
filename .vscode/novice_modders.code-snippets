@@ -1,0 +1,17 @@
+{
+	// Snippets for people who just mod the game content
+	// Basically all that is actions, links, ...
+	"Export method": {
+		"scope": "python",
+		"prefix": "def export",
+		"body": [
+			"def export_method(",
+			"\texport_variable: str,",
+			"\timport_variable: str,",
+			"\tmodels: Dict[RegionName, ModelType],",
+			") -> List[float] | Dict[RegionName, float]:",
+			"\t",
+		],
+		"description": "Signature of export method"
+	},
+}

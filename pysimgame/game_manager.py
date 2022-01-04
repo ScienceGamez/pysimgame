@@ -39,6 +39,7 @@ from .regions_display import (
 from .utils import GameComponentManager, recursive_dict_missing_values
 from .utils.directories import (
     GAME_SETTINGS_FILENAME,
+    INITIAL_CONDITIONS_FILENAME,
     MODEL_FILENAME,
     PYSDGAME_DIR,
     REGIONS_FILE_NAME,
@@ -47,7 +48,7 @@ from .utils.logging import logger, logger_enter_exit
 from .utils.pysimgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
 
 if TYPE_CHECKING:
-    from .types import RegionsDict
+    from .types import ModelType, RegionsDict
 
 
 BACKGROUND_COLOR = "black"
@@ -78,12 +79,20 @@ class Game:
     NAME: str
     GAME_DIR: pathlib.Path
     REGIONS_FILE: pathlib.Path
+    INITIAL_CONDITIONS_FILE: pathlib.Path
     PYSD_MODEL_FILE: pathlib.Path
     SETTINGS: Dict[str, Any]
 
     REGIONS_DICT: RegionsDict
 
-    def __init__(self, name: str, create: bool = False) -> None:
+    def __new__(cls, name: str | Game, *args, **kwargs):
+        if isinstance(name, cls):
+            # Return the game if a game object was given
+            return name
+        else:
+            return object.__new__(cls)
+
+    def __init__(self, name: str | Game, create: bool = False) -> None:
         self.NAME = name
         self.GAME_DIR = pathlib.Path(PYSDGAME_DIR, name)
         match self.GAME_DIR.exists(), create:
@@ -93,6 +102,9 @@ class Game:
                 raise RuntimeError(f"Game '{name}' cannot be found.")
         self.REGIONS_FILE = pathlib.Path(self.GAME_DIR, REGIONS_FILE_NAME)
         self.PYSD_MODEL_FILE = pathlib.Path(self.GAME_DIR, MODEL_FILENAME)
+        self.INITIAL_CONDITIONS_FILE = pathlib.Path(
+            self.GAME_DIR, INITIAL_CONDITIONS_FILENAME
+        )
         self._SETTINGS_FILE = pathlib.Path(
             self.GAME_DIR, GAME_SETTINGS_FILENAME
         )
@@ -144,6 +156,16 @@ class Game:
             json.dump(f, self.SETTINGS)
         logger.info("Game Settings saved.")
         logger.debug(f"Game Settings content: {self.SETTINGS}.")
+
+    def load_model(self) -> ModelType:
+        """Return a model object for doc purposes.
+
+        ..note:: currently works only with pysd models.
+        """
+        import pysd
+
+        model = pysd.load(self.PYSD_MODEL_FILE)
+        return model.components
 
 
 class GameManager(GameComponentManager):
@@ -360,14 +382,31 @@ class GameManager(GameComponentManager):
         return self.MAIN_DISPLAY
 
     # endregion Loading
+    def load(self, save_file: pathlib.Path):
+        """Load a game from the save.
 
-    def start_new_game(self, game: Tuple[Game, str]):
+        TODO: Implement
+        Idea: make every manager save in a file what they need and then
+        compress into a file.
+        """
+        save_dir = save_file.parent
+        for manager in self.MANAGERS.values():
+            manager.load(save_dir)
+
+    def start_new_game(
+        self, game: Tuple[Game, str], from_save: pathlib.Path = None
+    ):
         """Start a new game."""
         pygame.init()
         self.game = game
 
         logger.info("Preparing the game components")
         self.prepare()
+
+        if from_save:
+            logger.info(f"Loading from save {from_save}")
+            self.load(from_save)
+            logger.info(f"Save loaded {from_save}")
 
         logger.info("Connecting the game components")
         self.connect()

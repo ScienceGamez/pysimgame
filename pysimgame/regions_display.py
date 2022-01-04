@@ -354,14 +354,14 @@ class RegionsManager(GameComponentManager):
         if not img_path.exists():
             if original_img_path.exists():
                 # Convert the image to this format if not yet
-                logger.info(
+                self.logger.info(
                     "Resizing {} to {}.".format(original_img_path, size)
                 )
                 from .utils.images import resize_image
 
                 resize_image(original_img_path, img_path, size)
             else:
-                logger.debug(
+                self.logger.debug(
                     (
                         "No default background set. \n"
                         "Place a file at {}".format(original_img_path)
@@ -374,7 +374,7 @@ class RegionsManager(GameComponentManager):
         self.BACKGROUND_SURFACE = pygame.image.load(img_path)
         self.HAS_NO_BACKGROUND = False
 
-        logger.info(f"Loaded background {self.BACKGROUND_SURFACE}")
+        self.logger.info(f"Loaded background {self.BACKGROUND_SURFACE}")
 
     def _listen_mouse_events(self) -> bool:
         """Listen to mouse clicks and movement.
@@ -400,14 +400,14 @@ class RegionsManager(GameComponentManager):
         pressed = mouse.get_pressed()[0]
         clicked = not pressed and self._previous_pressed
         self._previous_pressed = pressed
-        logger.debug(f"hovered {hovered_region}")
+        self.logger.debug(f"hovered {hovered_region}")
 
-        if clicked:
+        if clicked and hovered_region is not None:
             # Select the clicked region
             self.selected_region = hovered_region
             event = Event(RegionFocusChanged, {"region": self.selected_region})
             pygame.event.post(event)
-            logger.info(f"Selected Region {self.selected_region}")
+            self.logger.info(f"Selected Region {self.selected_region}")
 
         if self._previous_hovered == hovered_region:
             return False

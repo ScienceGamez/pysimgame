@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Dict, List
 
 import pygame
@@ -30,13 +31,14 @@ class StatisticsDisplayManager(GameComponentManager):
     labels: Dict[str, UIButton]
 
     def prepare(self):
+        self.logger.setLevel(logging.DEBUG)
         main_size = self.GAME_MANAGER.MAIN_DISPLAY.get_size()
-        logger.debug(f"Game settings {self.GAME.SETTINGS}")
+        self.logger.debug(f"Game settings {self.GAME.SETTINGS}")
         self.UI_MANAGER = UIManager(
             main_size,
             self.GAME.SETTINGS["Themes"].get("Statistics", None),
         )
-        logger.debug(f"MAIN diplay size: {main_size}")
+        self.logger.debug(f"MAIN diplay size: {main_size}")
         colomun_width = 0.25
         menu_height = 0.07
         self.CONTAINER = UIColumnContainer(
@@ -109,14 +111,11 @@ class StatisticsDisplayManager(GameComponentManager):
             allow_double_clicks=True,
             # I tried to htmlify the message but it seems to not take into
             # account the all the format.
-            tool_tip_text='</div><br><br><div align = "left">'.join(
+            tool_tip_text="<br><br>".join(
                 (
-                    f'<div align = "left"><p><big>Unit</big>:<br>'
-                    f' {doc.get("Unit")} </p>',
-                    f"<p><big>Description</big>:<br>"
-                    f'{doc.get("Comment")} </p>',
-                    f"<p><big>Equation</big>:<br> "
-                    f"{doc.get('Eqn')} </p> </div>",
+                    f"<p>Unit:<br>" f' {doc.get("Unit")} </p>',
+                    f"<p>Description:<br>" f'{doc.get("Comment")} </p>',
+                    f"<p>Equation:<br> " f"{doc.get('Eqn')} </p>",
                 )
             ),
         )
@@ -137,6 +136,9 @@ class StatisticsDisplayManager(GameComponentManager):
         if self.GAME.SINGLE_REGION:
             model = self.MODEL_MANAGER._model
         else:
+            self.logger.debug(
+                f"Updating for region {self.drop_down.selected_option}"
+            )
             model = self.MODEL_MANAGER.models[self.drop_down.selected_option]
         for element, label in self.labels.items():
             label.set_text("{:1.3f}".format(model[element]))
@@ -151,6 +153,7 @@ class StatisticsDisplayManager(GameComponentManager):
                     and self.drop_down.selected_option != region.name
                 ):
                     self.drop_down.selected_option = region.name
+                    self.logger.debug(f"Updating for  {event=}")
                     self._update_stats()
             case EventType(
                 type=pygame.USEREVENT,

@@ -1,6 +1,7 @@
 """Utility module."""
 from __future__ import annotations
 
+import pathlib
 import threading
 from abc import ABC, abstractmethod
 from functools import wraps
@@ -9,7 +10,7 @@ from typing import TYPE_CHECKING, Callable, Tuple
 import pygame
 from pygame_gui.ui_manager import UIManager
 
-from .logging import logging
+from .logging import logging, register_logger
 
 if TYPE_CHECKING:
     from pysimgame.game_manager import Game, GameManager
@@ -83,6 +84,7 @@ class GameComponentManager(ABC):
 
         # Create the logger with the name of the component
         self.logger = logging.getLogger(type(self).__name__)
+        register_logger(self.logger)
 
     def __str__(self) -> str:
         return f"{type(self).__name__} for {self.GAME_MANAGER.game.NAME}"
@@ -111,6 +113,20 @@ class GameComponentManager(ABC):
 
     def process_events(self, event: pygame.event.Event):
         """Called in the game manager for listening to the events."""
+        pass
+
+    def save(self, save_dir: pathlib.Path):
+        """Save component content when the users saves game.
+
+        All the files should be saved in the specified save dir.
+        """
+        pass
+
+    def load(self, save_dir: pathlib.Path):
+        """Load component content when the users loads game.
+
+        All the files should be loaded from the specified save dir.
+        """
         pass
 
     def update(self) -> bool:
@@ -154,3 +170,22 @@ class GameComponentManager(ABC):
                     method()
 
         other_manager.update = listened_update
+
+
+def create_modding_file(game: Game | str):
+    """Create the modding helper file."""
+    import json
+
+    if isinstance(game, str):
+        from pysimgame.game_manager import Game
+
+        game = Game(game)
+    file = pathlib.Path(game.GAME_DIR, "modding_help.json")
+
+    dic = {
+        "Regions": [k for k in game.REGIONS_DICT.keys()],
+        "Attributes": [m for m in game.load_model()._namespace.values()],
+    }
+
+    with file.open("w") as f:
+        json.dump(dic, f, indent=2)

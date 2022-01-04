@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, List
 from pygame import image
 
 import pysimgame
+from pysimgame.game_manager import Game
 
 from .utils.directories import (
     BACKGROUND_DIR_NAME,
@@ -97,6 +98,37 @@ def parse_model_file(model_filepath: pathlib.Path, game_path: pathlib.Path):
     pysimgame_model_filepath = pysimgame_model_filepath.with_suffix(".py")
 
 
+def create_initial_conditions_file(game: Game | str):
+    game = Game(game)
+
+    model = game.load_model()
+
+    def valid_attr(attr: str):
+        if attr in [
+            "time",
+            "final_time",
+            "initial_time",
+            "saveper",
+            "time_step",
+        ]:
+            return False
+        return True
+
+    initial_conditions = {
+        "_time": float(model.time()),
+        **{
+            region: {
+                attr: float(getattr(model, attr)())
+                for attr in model._namespace.values()
+                if valid_attr(attr)
+            }
+            for region in game.REGIONS_DICT.keys()
+        },
+    }
+    with open(game.INITIAL_CONDITIONS_FILE, "w") as f:
+        json.dump(initial_conditions, f, indent=4)
+
+
 def import_game(
     game_name: str,
     model_filepath: pathlib.Path,
@@ -107,6 +139,7 @@ def import_game(
 ):
     """Import a new game on computer.
 
+    This create a game from a PySD model file.
     This function should be used as it will check the consistency of the
     games created, though it is also possible to simply modify the files.
     """

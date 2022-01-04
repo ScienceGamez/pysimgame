@@ -1,6 +1,7 @@
 """The model that runs with the game."""
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -28,6 +29,8 @@ from .utils.logging import logger, logger_enter_exit
 
 if TYPE_CHECKING:
     import pysd
+
+    from pysimgame.types import ExportImportMethod
 
     from .game_manager import GameManager
     from .plots import PlotsManager
@@ -66,7 +69,7 @@ class ModelManager(GameComponentManager):
     # Stores some functions that will be called before the step
     _presteps_calls: List[Callable[[], None]] = []
 
-    _import_exports_dic: Dict = {}
+    _export_imports_dic: Dict = {}
 
     # region Properties
     @property
@@ -143,7 +146,7 @@ class ModelManager(GameComponentManager):
                     "Subs": "???",
                     "Comment": "???",
                 }
-        logger.debug(f"Doc: {collector}")
+        self.logger.debug(f"Doc: {collector}")
         return collector
 
     @property
@@ -209,9 +212,11 @@ class ModelManager(GameComponentManager):
         # Create the time managers
         self.clock = pygame.time.Clock()
 
-        logger.debug(f"initial_time {self._model.components.initial_time()}.")
-        logger.debug(f"time_step {self._model.components.time_step()}.")
-        logger.debug(f"final_time {self._model.components.final_time()}.")
+        self.logger.debug(
+            f"initial_time {self._model.components.initial_time()}."
+        )
+        self.logger.debug(f"time_step {self._model.components.time_step()}.")
+        self.logger.debug(f"final_time {self._model.components.final_time()}.")
 
         self.time_axis = []
         self.current_time = self._model.time()
@@ -252,24 +257,39 @@ class ModelManager(GameComponentManager):
             for region in regions
         }
 
-        logger.info(
+        self.logger.info(
             "Created {} from file {}".format(
                 self.models, self.GAME_MANAGER.game.PYSD_MODEL_FILE
             )
         )
         model: pysd.statefuls.Model
         # Initialize each model
-        for model in self.models.values():
+        for region, model in self.models.items():
             # Can set initial conditions to the model variables
-            model.set_initial_condition("original")
+            if self.GAME.INITIAL_CONDITIONS_FILE.exists():
+                initial_coniditions = self._load_initial_conditions()
+                model.set_initial_condition(initial_coniditions[region])
+            else:
+                model.set_initial_condition("original")
 
             # Set the model in run phase
             model.time.stage = "Run"
-            logger.debug(f"Model components {model.components}.")
+            self.logger.debug(f"Model components {model.components}.")
             # cleans the cache of the components
             model.cache.clean()
 
         self._model = model
+
+    def _load_initial_conditions(self):
+        with open(self.GAME.INITIAL_CONDITIONS_FILE, "r") as f:
+            initial_json = json.load(f)
+        initial_conditions = {
+            region: (initial_json["_time"], dic)
+            for region, dic in initial_json.items()
+            if not region == "_time"
+        }
+        self.logger.error(f"{initial_conditions = }")
+        return initial_conditions
 
     def _discover_policies(self) -> POLICY_DICT:
         """Return a dictionary of the following structure.
@@ -356,6 +376,8 @@ class ModelManager(GameComponentManager):
             self._share_method(var)
 
     def _share_method(self, variable: str):
+        """Create the method that is shared by all regions."""
+
         def _shared_method():
             # This will always call the method called with the variable
             # name, so if it is modified, it will be for all models.
@@ -366,7 +388,7 @@ class ModelManager(GameComponentManager):
             if model.components == self.model:
                 # The "shared" model keeps the original method
                 continue
-            setattr(model.components, variable, _shared_method)
+            model.set_components({variable: _shared_method})
 
     def link_region_sum(self, input_variable: str, output_variable: str):
         """Link a region sum variable for the model."""
@@ -398,27 +420,98 @@ class ModelManager(GameComponentManager):
         # Add it to shared variable
         self._share_method(output_variable)
 
-    def link_import_export(
+    def link_export_import(
         self,
         export_variable: str,
         import_variable: str,
-        export_method: Callable[[str, str, List[ModelType]], List[float]],
+        export_import_method: ExportImportMethod,
     ) -> None:
-        """Link import export variable to the model."""
+        """Link import export variable to the model.
 
-        def compute_import():
-            import_values = export_method(
-                export_variable,
-                import_variable,
-                [model.components for model in self.models.values()],
+        :arg export_import_method: The method that should be used to compute the
+            export. It takes either 1 or 3 inputs:
+                * export_variable
+                * import_variable
+                * a dict containing the model for each region
+            or
+                * a dict containing the model for each region
+            And returns either a list of float (obtained by looping
+            over the models dict and assuming order is preserved)
+            or a dictionary specifying the import value for each region.
+
+        .. note:: The model import variable originial function is erased
+            so if you need it, consider creating another variable in the
+            model.
+        """
+        # Recall the original methods to not override
+        original_methods = {
+            region: [
+                getattr(model.components, export_variable),
+                getattr(model.components, import_variable),
+            ]
+            for region, model in self.models.items()
+        }
+
+        def compute_export_import():
+
+            # Set the original methods before we compute the variable
+            for region, methods in original_methods.items():
+                model = self.models[region]
+                model.set_components(
+                    {
+                        export_variable: methods[0],
+                        import_variable: methods[1],
+                    }
+                )
+
+            # Compute the actual values
+            export_values, import_values = export_import_method(
+                {name: model.components for name, model in self.models.items()}
             )
+            self.logger.setLevel(logging.DEBUG)
+            self.logger.debug(f"{export_values = }")
             self.logger.debug(f"{import_values = }")
-            for model, val in zip(self.models.values(), import_values):
-                # The import variable is the one computed
-                setattr(model.components, import_variable, lambda: val)
+
+            if not isinstance(import_values, dict) or not isinstance(
+                export_values, dict
+            ):
+                self.logger.error(
+                    f"Wrong output type for import method:"
+                    f" {type(import_values)}. Must be dict."
+                )
+
+            for region in self.models.keys():
+                self.logger.debug(
+                    "Must be the default methods: {}, {}.".format(
+                        getattr(
+                            self.models[region].components, export_variable
+                        )(),
+                        getattr(
+                            self.models[region].components, import_variable
+                        )(),
+                    )
+                )
+                self.models[region].set_components(
+                    {
+                        export_variable: export_values[region],
+                        import_variable: import_values[region],
+                    }
+                )
+                self.logger.debug(
+                    "Must be the export import values: {}, {}.".format(
+                        getattr(
+                            self.models[region].components, export_variable
+                        )(),
+                        getattr(
+                            self.models[region].components, import_variable
+                        )(),
+                    )
+                )
+
+            self.logger.setLevel(logging.INFO)
 
         # The output is computed before every step
-        self._presteps_calls.append(compute_import)
+        self._presteps_calls.append(compute_export_import)
 
     # endregion Links
     # endregion Prepare
