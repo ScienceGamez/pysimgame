@@ -9,4 +9,5 @@ from .exports_methods import (
     fulfil_imports,
     weighted_average,
 )
+from .modifiers import modifiy
 from .shared_variables import shared_variable

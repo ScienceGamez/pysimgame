@@ -21,7 +21,7 @@ from pysimgame.utils.logging import logger
 
 if TYPE_CHECKING:
     from pysimgame.game_manager import GameManager
-    from pysimgame.plots import PlotsManager
+    from pysimgame.plotting.manager import PlotsManager
 
 import pygame_gui
 from pygame_gui import UIManager

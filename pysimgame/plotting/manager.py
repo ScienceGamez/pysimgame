@@ -23,17 +23,15 @@ from pygame_gui.ui_manager import UIManager
 from pygame_matplotlib import pygame_color_to_plt
 from pygame_matplotlib.backend_pygame import FigureSurface
 from pygame_matplotlib.gui_window import UIPlotWindow
-
 from pysimgame.model import ModelManager
 from pysimgame.utils import GameComponentManager
 from pysimgame.utils.logging import logger
 from pysimgame.utils.strings import beautify_parameter_name
 
-from .utils.maths import normalize
+from ..utils.maths import normalize
 
 if TYPE_CHECKING:
-    from pysimgame.game_manager import GameManager
-    from .game_manager import GameManager
+    from ..game_manager import GameManager
     import matplotlib
     import matplotlib.axes
     import matplotlib.artist

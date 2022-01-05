@@ -7,6 +7,7 @@ import pathlib
 import shutil
 from typing import TYPE_CHECKING, Any, List
 
+import pysd
 from pygame import image
 
 import pysimgame
@@ -58,17 +59,32 @@ def from_local_file(
     return
 
 
+def update_model_file(game: Game | str):
+    game = Game(game)
+    model_file = game.PYSD_MODEL_FILE.with_suffix(".mdl")
+    parse_model_file(model_file, game.GAME_DIR)
+
+
 def parse_model_file(model_filepath: pathlib.Path, game_path: pathlib.Path):
     """Read the model file and parse it into python script using pysd."""
     # Where pysimgame will store the model
-
     pysimgame_model_filepath = pathlib.Path(
         game_path, MODEL_FILESTEM + model_filepath.suffix
     )
 
-    shutil.copyfile(  # Copy to the new location
-        model_filepath, pysimgame_model_filepath
-    )
+    if pysimgame_model_filepath == model_filepath:
+        # File is already at good location
+        # We just need to parse it again
+        pass
+    else:
+        if pysimgame_model_filepath.exists():
+            logger.warn(
+                f"File {pysimgame_model_filepath} already exists. "
+                f"Overriden by {model_filepath}."
+            )
+        shutil.copyfile(  # Copy to the new location
+            model_filepath, pysimgame_model_filepath
+        )
 
     # Check which model type it is to parse it
     if pysimgame_model_filepath.suffix == ".mdl":
@@ -99,12 +115,28 @@ def parse_model_file(model_filepath: pathlib.Path, game_path: pathlib.Path):
 
 
 def create_initial_conditions_file(game: Game | str):
+    """Create the file for inital conditions.
+
+    If the file already exists, the user will be prompted in the terminal.
+    """
     game = Game(game)
+    if game.INITIAL_CONDITIONS_FILE.exists():
+        ans = input("Initial conditions file exist already. Overwrite ? [y/n]")
+        if ans not in ["Y", "y", "yes"]:
+            return
 
+    # This returns model.components
     model = game.load_model()
+    # This retuurns model
+    import pysd
 
-    def valid_attr(attr: str):
-        if attr in [
+    _model = pysd.load(game.PYSD_MODEL_FILE)
+    doc = _model.doc()
+    constants = list(doc["Py Name"][doc["Type"] == "constant"])
+
+    def valid_component(component_name: str):
+        # Check component is valid for initial conditions
+        if component_name in [
             "time",
             "final_time",
             "initial_time",
@@ -112,6 +144,18 @@ def create_initial_conditions_file(game: Game | str):
             "time_step",
         ]:
             return False
+
+        # Constants are accepted
+        if component_name in constants:
+            print(f"Constant {component_name}")
+            return True
+        # This will remove components that are function of other components
+        #  Code is from PySD and I don't understand it exactly
+        if model._dependencies[component_name]:
+            deps = list(model._dependencies[component_name])
+            if not (len(deps) == 1 and deps[0] in _model.initialize_order):
+                print(f"Removed {component_name = }")
+                return False
         return True
 
     initial_conditions = {
@@ -120,11 +164,12 @@ def create_initial_conditions_file(game: Game | str):
             region: {
                 attr: float(getattr(model, attr)())
                 for attr in model._namespace.values()
-                if valid_attr(attr)
+                if valid_component(attr)
             }
             for region in game.REGIONS_DICT.keys()
         },
     }
+
     with open(game.INITIAL_CONDITIONS_FILE, "w") as f:
         json.dump(initial_conditions, f, indent=4)
 

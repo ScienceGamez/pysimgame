@@ -30,7 +30,7 @@ from pysimgame.utils import logging
 
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .model import ModelManager, Policy
-from .plots import PlotsManager
+from .plotting.manager import PlotsManager
 from .regions_display import (
     RegionComponent,
     RegionsManager,

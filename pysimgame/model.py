@@ -33,8 +33,8 @@ if TYPE_CHECKING:
     from pysimgame.types import ExportImportMethod
 
     from .game_manager import GameManager
-    from .plots import PlotsManager
-    from .types import POLICY_DICT, ModelType
+    from .plotting.manager import PlotsManager
+    from .types import POLICY_DICT, ModelMethod, ModelType, RegionName
 
 
 POLICY_PREFIX = "policy_"
@@ -267,8 +267,9 @@ class ModelManager(GameComponentManager):
         for region, model in self.models.items():
             # Can set initial conditions to the model variables
             if self.GAME.INITIAL_CONDITIONS_FILE.exists():
-                initial_coniditions = self._load_initial_conditions()
-                model.set_initial_condition(initial_coniditions[region])
+                # First finds out the constants components
+                self._set_initial_conditions(region, model)
+
             else:
                 model.set_initial_condition("original")
 
@@ -280,7 +281,38 @@ class ModelManager(GameComponentManager):
 
         self._model = model
 
+    def _set_initial_conditions(
+        self, region: RegionName, model: pysd.statefuls.Model
+    ):
+        # Set the intial conditions of the model
+        # The problem is that pysd handles variables differently
+        # some variables should not be in the file
+        # see new_game.create_initial_conditions_file for that
+        # Then we need here to split between constants and
+        # other variables
+        doc = model.doc()
+        constants = list(doc["Py Name"][doc["Type"] == "constant"])
+
+        # Load the conditions for that region
+        time, file_conditions = self._load_initial_conditions[region]
+        initial_constants, initial_conditions = {}, {}
+        # Need to split between constants and others
+        for variable, initial_value in file_conditions.items():
+            dic_to_use = (
+                initial_constants
+                if variable in constants
+                else initial_conditions
+            )
+            dic_to_use[variable] = initial_value
+
+        # Set the constants and inital conditions
+        self.logger.debug(f"{initial_constants = }  {initial_conditions = }")
+        model.set_components(initial_constants)
+        model.set_initial_condition((time, initial_conditions))
+
+    @cached_property
     def _load_initial_conditions(self):
+        """Load the content form the initial conditions file."""
         with open(self.GAME.INITIAL_CONDITIONS_FILE, "r") as f:
             initial_json = json.load(f)
         initial_conditions = {
@@ -288,7 +320,7 @@ class ModelManager(GameComponentManager):
             for region, dic in initial_json.items()
             if not region == "_time"
         }
-        self.logger.error(f"{initial_conditions = }")
+        self.logger.debug(f"{initial_conditions = }")
         return initial_conditions
 
     def _discover_policies(self) -> POLICY_DICT:
@@ -405,6 +437,15 @@ class ModelManager(GameComponentManager):
         # Add it to shared variable
         self._share_method(output_variable)
 
+    def link_modify(
+        self, region: RegionName, attribute: str, new_func: ModelMethod
+    ):
+        """Link that modifies a model single attribute with a new value.
+
+        Connected to the :py:meth:`links.modifiy` method.
+        """
+        self.models[region].set_components({attribute: new_func})
+
     def link_region_average(self, input_variable: str, output_variable: str):
         """Link a region average variable for the model."""
 
@@ -468,7 +509,6 @@ class ModelManager(GameComponentManager):
             export_values, import_values = export_import_method(
                 {name: model.components for name, model in self.models.items()}
             )
-            self.logger.setLevel(logging.DEBUG)
             self.logger.debug(f"{export_values = }")
             self.logger.debug(f"{import_values = }")
 
@@ -508,8 +548,6 @@ class ModelManager(GameComponentManager):
                     )
                 )
 
-            self.logger.setLevel(logging.INFO)
-
         # The output is computed before every step
         self._presteps_calls.append(compute_export_import)
 
@@ -548,7 +586,6 @@ class ModelManager(GameComponentManager):
     @logger_enter_exit(ignore_exit=True)
     def _save_current_elements(self):
         for region, model in self.models.items():
-            print(model.time(), region)
             self.outputs.at[model.time(), region] = [
                 getattr(model.components, key)()
                 for key in self.capture_elements
@@ -631,11 +668,12 @@ class ModelManager(GameComponentManager):
         if policy.activated:
             for model_dependent_method in policy.modifiers:
                 # Iterate over all the methods from the modifiers
-                model = self[region]
+                model: pysd.statefuls.Model = self[region]
                 # NOTE: in pysd we need to set the components of the model object
                 attr_name, new_func = model_dependent_method(model.components)
                 logger.debug(getattr(model.components, attr_name))
-                setattr(model.components, attr_name, new_func)
+                model.set_components({attr_name: new_func})
+                # setattr(model.components, attr_name, new_func)
                 logger.debug(getattr(model.components, attr_name))
                 logger.debug(f"Setting {attr_name} of {model} to {new_func}")
         else:  # not activated

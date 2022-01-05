@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     RegionName = str
     RegionsDict = Dict[RegionName, RegionComponent]
 
+    AttributeName = str
+
     ModelType = TypeVar("ModelType")
     ModelsDict = Dict[RegionName, ModelType]
     # A model method must return a float and take no argument
@@ -24,7 +26,7 @@ if TYPE_CHECKING:
     # export values and then the import values of each region
     ExportImportMethod = Callable[
         Union[
-            [str, str, ModelsDict], [ModelsDict]
+            [AttributeName, AttributeName, ModelsDict], [ModelsDict]
         ],  # Union[[str, str, ModelsDict], [ModelsDict]]
         Tuple[Dict[RegionName, float], Dict[RegionName, float]],
     ]
