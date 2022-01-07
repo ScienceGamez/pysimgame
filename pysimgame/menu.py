@@ -121,9 +121,6 @@ class MenuOverlayManager(GameComponentManager):
 
                 # When the menu is closed, this code continues here
                 handled = True
-            elif event.ui_object_id == "#plots_button":
-                # Add a new plot
-                self.PLOTS_MANAGER.add_graph()
 
             elif event.ui_object_id == "#stats_button":
                 # Will show or hide the stats

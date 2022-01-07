@@ -37,3 +37,9 @@ pysd being the main one.
 Make it possible for each region to simulate a different model type.
 
 Add a 'Values' logging level
+
+Adding stopping conditions (time, funciton of something, target value, ...)
+
+Make the possibility to show custom plots.
+Think whether improving the pygame matplotlib backend or just
+copying the output of another backend.

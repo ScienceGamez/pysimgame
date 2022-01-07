@@ -58,7 +58,7 @@ class ModelManager(GameComponentManager):
     PLOTS_MANAGER: PlotsManager
 
     _elements_names: List[str] = None  # Used to internally store elements
-    capture_elements: List[str]
+    capture_attributes: List[str]
     models: Dict[str, pysd.statefuls.Model]
     _model: pysd.statefuls.Model
     time_step: float
@@ -98,7 +98,7 @@ class ModelManager(GameComponentManager):
         """
         collector = {}
         for name, varname in self._model.components._namespace.items():
-            # if varname not in self.capture_elements:
+            # if varname not in self.capture_attributes:
             #     # Ignore variable not in capture elements
             #     continue
             try:
@@ -207,7 +207,7 @@ class ModelManager(GameComponentManager):
 
         self._load_models()
         # Set the captured_elements
-        self.capture_elements = None
+        self.capture_attributes = None
 
         # Create the time managers
         self.clock = pygame.time.Clock()
@@ -228,7 +228,7 @@ class ModelManager(GameComponentManager):
         regions = self.GAME_MANAGER.game.REGIONS_DICT.keys()
         # Create a df to store the output
         index = pd.MultiIndex.from_product(
-            [regions, self.capture_elements],
+            [regions, self.capture_attributes],
             names=["regions", "elements"],
         )
         logger.debug(f"Created Index {index}")
@@ -348,11 +348,11 @@ class ModelManager(GameComponentManager):
         }
 
     @property
-    def capture_elements(self):
-        return self._capture_elements
+    def capture_attributes(self):
+        return self._capture_attributes
 
-    @capture_elements.setter
-    def capture_elements(self, elements: List[str]):
+    @capture_attributes.setter
+    def capture_attributes(self, elements: List[str]):
         """Capture elements are defined the following.
 
         1. If you assign a list of element, it will be it.
@@ -362,7 +362,7 @@ class ModelManager(GameComponentManager):
         """
         # Check which elements should be captured
         if elements is None:
-            elements_file = Path(self.GAME.GAME_DIR, "capture_elements.txt")
+            elements_file = Path(self.GAME.GAME_DIR, "capture_attributes.txt")
             if elements_file.exists():
                 with open(elements_file, "r") as f:
                     # Remove the end of line \n
@@ -380,7 +380,7 @@ class ModelManager(GameComponentManager):
                         elements.remove(element)
                 with open(elements_file, "w") as f:
                     f.writelines("\n".join(elements))
-        self._capture_elements = elements
+        self._capture_attributes = elements
         logger.debug(f"Set captured elements: {elements}")
 
     def connect(self):
@@ -578,7 +578,6 @@ class ModelManager(GameComponentManager):
             model.clean_caches()
         # Saves right after the iteration
         self._save_current_elements()
-        self.update()
 
         event = pygame.event.Event(pysimgame.events.ModelStepped, {})
         pygame.event.post(event)
@@ -588,20 +587,10 @@ class ModelManager(GameComponentManager):
         for region, model in self.models.items():
             self.outputs.at[model.time(), region] = [
                 getattr(model.components, key)()
-                for key in self.capture_elements
+                for key in self.capture_attributes
             ]
         # Also save the time
         self.time_axis.append(self.current_time)
-
-    def update(self) -> bool:
-        """Each time the update is called is after a step."""
-        # Updates the plots, now that the step was done
-        # TODO: check if not joining here will lead to an issue
-        threading.Thread(
-            target=self.PLOTS_MANAGER.update, name="Plot Update"
-        ).start()
-        # Return true, as only called in step
-        return True
 
     def pause(self):
         """Set the model to pause.

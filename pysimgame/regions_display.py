@@ -11,7 +11,7 @@ import pygame
 from pygame import Rect, Surface, draw, mouse
 from pygame.event import Event
 
-from pysimgame.events import RegionFocusChanged
+import pysimgame
 from pysimgame.utils import HINT_DISPLAY, GameComponentManager, logging
 from pysimgame.utils.directories import (
     BACKGROUND_DIR_NAME,
@@ -25,12 +25,6 @@ if TYPE_CHECKING:
     from .types import RegionsDict
 
 _REGION_COUNTER = 0
-
-
-def post_even_region_selected(region: RegionComponent) -> None:
-    """Post an event of selection of a Region."""
-    event = Event(RegionFocusChanged, {"region": region})
-    pygame.event.post(event)
 
 
 class RegionComponent:
@@ -302,10 +296,10 @@ class RegionsManager(GameComponentManager):
         pass
 
     @property
-    def selected_region(self) -> Union[RegionComponent, None]:
+    def selected_region(self) -> RegionComponent:
         """Return the :py:class:`RegionComponent` currently selected."""
         if self._selected_region_str is None:
-            return None
+            return list(self.REGIONS_DICT.values())[0]
         else:
             return self.REGIONS_DICT[self._selected_region_str]
 
@@ -405,7 +399,10 @@ class RegionsManager(GameComponentManager):
         if clicked and hovered_region is not None:
             # Select the clicked region
             self.selected_region = hovered_region
-            event = Event(RegionFocusChanged, {"region": self.selected_region})
+            event = Event(
+                pysimgame.events.RegionFocusChanged,
+                {"region": self.selected_region},
+            )
             pygame.event.post(event)
             self.logger.info(f"Selected Region {self.selected_region}")
 
@@ -415,6 +412,17 @@ class RegionsManager(GameComponentManager):
         # New region is hover
         self._previous_hovered = hovered_region
         return True
+
+    def process_events(self, event: pygame.event.Event):
+        """Listen the events for this manager."""
+        match event:
+            case pygame.event.EventType(
+                type=pysimgame.events.RegionFocusChanged
+            ):
+                print(event)
+                self.selected_region = event.region
+            case _:
+                pass
 
     def update(self) -> bool:
         update_regions = self._listen_mouse_events()

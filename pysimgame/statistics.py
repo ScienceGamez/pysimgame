@@ -80,12 +80,10 @@ class StatisticsDisplayManager(GameComponentManager):
     def connect(self):
         self.MODEL_MANAGER = self.GAME_MANAGER.MODEL_MANAGER
 
-        elements = self.MODEL_MANAGER.capture_elements
+        elements = self.MODEL_MANAGER.capture_attributes
 
         for element in elements:
             self._create_line(element)
-
-        self.listen_to_update(self.MODEL_MANAGER, self._update_stats)
 
     def hide(self):
         self.CONTAINER.hide()
@@ -155,9 +153,10 @@ class StatisticsDisplayManager(GameComponentManager):
                     self.drop_down.selected_option = region.name
                     self.logger.debug(f"Updating for  {event=}")
                     self._update_stats()
+            case EventType(type=pysimgame.events.ModelStepped):
+                self._update_stats()
             case EventType(
-                type=pygame.USEREVENT,
-                user_type=pygame_gui.UI_DROP_DOWN_MENU_CHANGED,
+                type=pygame_gui.UI_DROP_DOWN_MENU_CHANGED,
                 ui_element=self.drop_down,
             ):
                 # Drop down has been changed by the user

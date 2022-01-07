@@ -10,14 +10,19 @@ Different plots window can be created:
 """
 from __future__ import annotations
 
+import logging
+import pathlib
+import threading
+import time
+from importlib.machinery import SourceFileLoader
 from typing import TYPE_CHECKING, Dict, List, Tuple, Type
 
 import numpy as np
 import pandas
 import pygame
 import pygame_gui
+import pysimgame
 from matplotlib.lines import Line2D
-from pygame_gui import elements
 from pygame_gui.elements.ui_button import UIButton
 from pygame_gui.ui_manager import UIManager
 from pygame_matplotlib import pygame_color_to_plt
@@ -32,9 +37,11 @@ from ..utils.maths import normalize
 
 if TYPE_CHECKING:
     from ..game_manager import GameManager
+    from .plot import Plot
     import matplotlib
     import matplotlib.axes
     import matplotlib.artist
+    from pysimgame.types import AttributeName, RegionName
 
 import matplotlib.pyplot as plt
 
@@ -44,16 +51,22 @@ REGION_COLORS = {""}
 
 Region: Type[str] = str
 
+_PLOT_MANAGER: PlotsManager
+
 
 class PysgamePlotWindow(UIPlotWindow):
-    """Attributes for a pysimgame plot."""
+    """Attributes for a pysimgame plot.
+
+    This is not used.
+    TODO: See if this could be useful somehow.
+    """
 
     # Stores the info on what to plot
     regions: List[str]
-    elements: List[str]
+    attributes: List[str]
     _regions: List[str]
-    _elements: List[str]
-    # Stores the elements of the figure
+    _attributes: List[str]
+    # Stores the attributes of the figure
     figure: FigureSurface
     ax: matplotlib.axes.Axes
     artists: List[matplotlib.artist.Artist]
@@ -69,18 +82,18 @@ class PysgamePlotWindow(UIPlotWindow):
         self._regions = list(regions).copy()
 
     @property
-    def elements(self) -> List[str]:
-        return self._elements
+    def attributes(self) -> List[str]:
+        return self._attributes
 
-    @elements.setter
-    def elements(self, elements: List[str]):
-        if elements is None:
-            elements = []
-        self._elements = list(elements).copy()
+    @attributes.setter
+    def attributes(self, attributes: List[str]):
+        if attributes is None:
+            attributes = []
+        self._attributes = list(attributes).copy()
 
     def __str__(self) -> str:
-        return "Plot window: \n \t Regions {} \t Elements: {}".format(
-            self.regions, self.elements
+        return "Plot window: \n \t Regions {} \t attributes: {}".format(
+            self.regions, self.attributes
         )
 
 
@@ -89,24 +102,61 @@ class PlotsManager(GameComponentManager):
 
     Register all the plots that were created and that are now active.
     Updates the at every step with the new data.
+
+
+    Notes on the implementation.
+    The plotting process runs on separated threads, as it takes a bit of
+    time, so the main process can run without needing to wait for the plots.
     """
 
-    ui_plot_windows: List[PysgamePlotWindow]
+    ui_plot_windows: Dict[str, UIPlotWindow]
     GAME_MANAGER: GameManager
     MODEL_MANAGER: ModelManager
+    axes: Dict[str, matplotlib.axes.Axes]
+    lines: Dict[str, List[Line2D]]
     _connected: bool = False
     region_colors: Dict[str, Tuple[float, float, float, float]]
+
+    plots: Dict[str, Plot]
+
+    _menu_button: UIButton
+    _plot_list_buttons: List[UIButton]
+
+    _menu_button_position: Tuple[int, int]
+
+    _content_thread: threading.Thread
+    _surface_thread: threading.Thread
+    _figsurface_locks: Dict[str, threading.Lock]
+    _last_time: float
 
     # Initialization Methods #
 
     def prepare(self):
         """Prepare the graph manager."""
-        self.ui_plot_windows = []
+
+        self.ui_plot_windows = {}
+        self.axes = {}
+        self.lines = {}
         self.previous_serie = None
+        self._plot_list_buttons = []
+        self.plots = {}
+        self._content_thread = None
+        self._surface_thread = None
+        self._figsurface_locks = {}
+        self._last_time = time.time()
 
         self._read_regions_colors()
-        # TODO: think if we want a separated UI Manager for plots
-        self.ui_manager = self.GAME_MANAGER.UI_MANAGER
+        # Manager for the standard UI stuff
+        self.UI_MANAGER = self.GAME_MANAGER.UI_MANAGER
+        # Manager for showing the plots
+        # This should not be called by the main thread !
+        # So we make it private
+        self._UI_MANAGER = UIManager(
+            self.GAME_MANAGER.MAIN_DISPLAY.get_size(),
+        )
+
+        global _PLOT_MANAGER
+        _PLOT_MANAGER = self
 
     def _read_regions_colors(self):
         self.region_colors = {
@@ -118,6 +168,11 @@ class PlotsManager(GameComponentManager):
 
     def connect(self):
         self._connect_to_model(self.GAME_MANAGER.MODEL_MANAGER)
+        self._menu_button_position = (
+            self.GAME_MANAGER.MENU_OVERLAY.overlay_buttons[-1]
+            .get_abs_rect()
+            .bottomleft
+        )
 
     def _connect_to_model(self, MODEL_MANAGER: ModelManager):
         """Connect the plots display to the models."""
@@ -130,13 +185,16 @@ class PlotsManager(GameComponentManager):
         # Time axis
         self.time_axis = MODEL_MANAGER.time_axis
 
-        # Check existing plots
-        for plot_window in self.ui_plot_windows:
-            if plot_window.regions is None:
-                plot_window.regions = self.df_keys["regions"].unique()
-            if plot_window.elements is None:
-                plot_window.elements = self.df_keys["elements"].unique()
+        # Load the plots
+        plots_dir = pathlib.Path(self.GAME.GAME_DIR, "plots")
+        if not plots_dir.exists():
+            plots_dir.mkdir()
+        plots_files = list(plots_dir.rglob("*.py"))
+        # Read what is in the files
+        for file in plots_files:
+            SourceFileLoader("", str(file)).load_module()
 
+        logger.debug(f"Files: {plots_files}")
         # Register connected
         self._connected = True
 
@@ -149,98 +207,115 @@ class PlotsManager(GameComponentManager):
         """
         return pygame.Rect(0, 0, 300, 300)
 
-    def add_graph(
-        self,
-        elements: List[str] = None,
-        regions: Tuple[List[Region], Region] = None,
-    ) -> None:
-        """Add a graph to the game.
+    def add_plot(self, name: str, plot: Plot):
+        """Add a :py:class:`Plot` to the manager."""
+        if name in self.plots.keys():
+            # Already there
+            self.logger.warn(f"{name} already in plots.")
+            return
+        self.plots[name] = plot
+        self._figsurface_locks[name] = threading.Lock()
+        self.logger.debug(f"Lock created : {self._figsurface_locks[name]}")
 
-        Args:
-            elements: The name of the variables to be plotted. If None,
-                will look at all the available elements.
-            regions: The regions which should be on the plot. If None,
-                plot all the regions.
-        """
-        # Needs to recall the ui to update
-        figure, ax = plt.subplots(1, 1)
-        plot_window = PysgamePlotWindow(
-            self.get_a_rect(), self.ui_manager, figure, resizable=True
-        )
-        self.ui_plot_windows.append(plot_window)
-
-        # Attributes all elements or all regions in case not defined
-        if regions is None:
-            regions = self.GAME.REGIONS_DICT.keys()
-        plot_window.regions = regions
-        if elements is None:
-            elements = self.MODEL_MANAGER.capture_elements
-        plot_window.elements = elements
-        plot_window.ax = ax
-        plot_window.figure = figure
-        plot_window.artists = []
-        plot_window.get_container().set_image(figure)
-        plot_window._created = False
-        logger.info("Graph added.")
-        logger.debug(f"Graph: {plot_window}.")
         if self._connected:
-            self._create_plot_window(plot_window)
+            self._create_plot_window(name)
 
-    def _create_plot_window(self, plot_window: PysgamePlotWindow):
+    def _create_plot_window(self, plot_name: str):
         """Create the plot on the window.
 
-        Assume plot_window has regions and elements it need to plot.
+        Assume plot_window has regions and attributes it need to plot.
         """
+
+        if plot_name not in self.ui_plot_windows.keys():
+            # Needs to recall the ui to update
+            figure, ax = plt.subplots(1, 1)
+            plot_window = UIPlotWindow(
+                self.get_a_rect(),
+                self._UI_MANAGER,
+                figure,
+                window_display_title=plot_name,
+                object_id=f"#plot_window",
+                resizable=True,
+            )
+            self.ui_plot_windows[plot_name] = plot_window
+
+            self.axes[plot_name] = ax
+            self.lines[plot_name] = []
+
+            # plot_window.get_container().set_image(figure)
+            # plot_window._created = False
+            logger.info("Graph added.")
+            logger.debug(f"Graph: {plot_window}.")
+        else:
+            plot_window = self.ui_plot_windows[plot_name]
+
         if len(self.model_outputs) < 2:
             # Cannot plot lines if only one point
             return
 
-        # Plot all the lines required
-        for region in plot_window.regions:
-            for element in plot_window.elements:
-                # Gets the elements
-                y = self.model_outputs[region, element].to_numpy().reshape(-1)
-                plot_window.ax.set_xlim(self.time_axis[0], self.time_axis[-1])
-                artists = plot_window.ax.plot(
-                    self.time_axis,
-                    y,
-                    color=self.region_colors[region],
-                )
-
-        # Set a title to the window
-        self.set_window_title(plot_window)
-
         # Now it is created
         plot_window._created = True
         plot_window.update_window_image()
-        logger.info(f"Figure {plot_window.figure}")
-        logger.info(f"FigureSurf {plot_window.figuresurf}")
-        logger.info(
-            f"Are the same {plot_window.figuresurf == plot_window.figure}"
-        )
+        self.logger.debug(f"FigureSurf {plot_window.figuresurf}")
+
+    def show_plots_list(self):
+        x, y = self._menu_button_position
+        width = 100
+        heigth = 30
+        if self._plot_list_buttons:
+            for button in self._plot_list_buttons:
+                button.show()
+        else:
+            # Create
+            del self._plot_list_buttons
+            self._plot_list_buttons = [
+                UIButton(
+                    relative_rect=pygame.Rect(
+                        x, y + i * heigth, width, heigth
+                    ),
+                    text=name,
+                    manager=self.UI_MANAGER,
+                )
+                for i, name in enumerate(self.plots.keys())
+            ]
 
     # Adding plots methods
 
-    def set_window_title(self, plot_window: PysgamePlotWindow):
-        """Find out which title should be given to the window and give it."""
-        if len(plot_window.elements) == 1:
-            title = plot_window.elements[0]
-        elif len(plot_window.regions) == 1:
-            title = plot_window.regions[0]
-        else:
-            title = "Custom selection"
-
-        plot_window.set_display_title(beautify_parameter_name(title))
-
     def process_events(self, event: pygame.event.Event):
         """Process the events from the main loop."""
-        if (
-            event.type == pygame.USEREVENT
-            and event.user_type == pygame_gui.UI_WINDOW_CLOSE
-            and event.ui_element in self.ui_plot_windows
-        ):
-            # Close the winow event
-            self.ui_plot_windows.remove(event.ui_element)
+        self._UI_MANAGER.process_events(event)
+        match event:
+            case pygame.event.EventType(
+                type=pygame_gui.UI_BUTTON_PRESSED, ui_object_id="#plots_button"
+            ):
+                self.show_plots_list()
+            case pygame.event.EventType(type=pygame_gui.UI_BUTTON_PRESSED):
+                if event.ui_element in self._plot_list_buttons:
+                    self.logger.info(f"Create Plot {event.ui_element.text}")
+                    self._create_plot_window(event.ui_element.text)
+                    # Deletes all the buttons
+                    for button in self._plot_list_buttons:
+                        button.hide()
+            case pygame.event.EventType(type=pygame_gui.UI_WINDOW_CLOSE):
+                if event.ui_element in self.ui_plot_windows:
+                    # Remove the window
+                    window: UIPlotWindow = event.ui_element
+                    del self.ui_plot_windows[window.window_display_title]
+
+            case pygame.event.EventType(type=pysimgame.ModelStepped):
+                # Update the plot on a separated thread
+                if (
+                    self._content_thread is None
+                    or not self._content_thread.is_alive()
+                ):
+                    del self._content_thread
+                    self._content_thread = threading.Thread(
+                        target=self.update, name="Plot Update"
+                    )
+                    self._content_thread.start()
+                    self.logger.debug(
+                        f"Thread Started : {self._content_thread}"
+                    )
 
     def update(self):
         """Update the plots based on the new outputs.
@@ -253,7 +328,7 @@ class PlotsManager(GameComponentManager):
             # Cannot plot lines if only one point
             return
 
-        for plot_window in self.ui_plot_windows:
+        for plot_name, plot_window in self.ui_plot_windows.items():
             logger.info(f"Plotting {plot_window}.")
             if not plot_window.visible:
                 # If the window is not visible
@@ -262,32 +337,75 @@ class PlotsManager(GameComponentManager):
             if not plot_window._created:
                 self._create_plot_window(plot_window)
 
-            plot_window.ax.clear()
-            for region in plot_window.regions:
-                for element in plot_window.elements:
-                    # Gets the elements
-                    y = (
-                        self.model_outputs[region, element]
-                        .to_numpy()
-                        .reshape(-1)
-                    )
-                    plot_window.ax.set_xlim(
-                        self.time_axis[0], self.time_axis[-1]
-                    )
-                    artists = plot_window.ax.plot(
-                        self.time_axis,
-                        y,
-                        # color=self.region_colors[region],
-                        label=" ".join((region, element)),
-                    )
-                    plot_window.ax.legend()
-                    logger.debug(f"Plotting {region} {element}.")
-                    logger.debug(f"Setting: \n x: {x} \n y: {y}.")
+            # First get the ax and cleans it
+            ax = self.axes[plot_name]
+            ax.clear()
+            # Plot all the lines required
+            for plot_line in self.plots[plot_name].plot_lines:
 
-            plot_window.figure.canvas.draw()
+                # Gets the attributes
+                y = (
+                    self.model_outputs[plot_line.region, plot_line.attribute]
+                    .to_numpy()
+                    .reshape(-1)
+                )
+                ax.set_xlim(self.time_axis[0], self.time_axis[-1])
+                artists = ax.plot(
+                    self.time_axis,
+                    y,
+                    # color=self.region_colors[plot_line.region],
+                    label=" ".join((plot_line.region, plot_line.attribute)),
+                    **plot_line.kwargs,
+                )
+                logger.debug(
+                    f"Plotting {plot_line.region} {plot_line.attribute}."
+                )
+                logger.debug(f"Setting: \n x: {x} \n y: {y}.")
+            ax.legend()
+
+            # lock the figsurface, so it is not used during the drawing
+            self._figsurface_locks[plot_name].acquire()
+            self.logger.debug(
+                f"Lock acquired : {self._figsurface_locks[plot_name]}"
+            )
+            plot_window.figuresurf.canvas.draw()
             plot_window.update_window_image()
+            self._figsurface_locks[plot_name].release()
             # plot_window.figuresurf.canvas.flush_events()
             # plot_window.get_container().set_image(plot_window.figuresurf)
+
+    def draw(self):
+        # Call the thread drawing the plot
+        # if self._surface_thread is None or not self._surface_thread.is_alive():
+        #     self._surface_thread = threading.Thread(
+        #         target=self._draw, name="Drawing Plots on MAIN_DISPLAY"
+        #     )
+        #     self._surface_thread.start()
+        #     self.logger.debug(f"Thread Started : {self._surface_thread}")
+        self._draw()
+        # Draw the UI
+        self._UI_MANAGER.draw_ui(self.GAME_MANAGER.MAIN_DISPLAY)
+
+    def _draw(self):
+        # Aquire the lock on all the active plots
+        locks = [
+            self._figsurface_locks[name]
+            for name in self.ui_plot_windows.keys()
+        ]
+        for lock in locks:
+            lock.acquire()
+            self.logger.debug(f"Lock acquired : {lock}")
+        # Gets the time required for the UI MANAGER update
+        _time_elapsed = time.time() - self._last_time
+        self._UI_MANAGER.update(_time_elapsed)
+        self._last_time = time.time()
+
+        for lock in locks:
+            lock.release()
+            self.logger.debug(f"Lock released : {lock}")
+
+    def quit(self):
+        self._content_thread.join()
 
     def coordinates_from_serie(self, serie):
         """Convert a serie to pixel coordinates.

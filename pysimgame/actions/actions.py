@@ -229,6 +229,8 @@ class ActionsManager(GameComponentManager):
         Each python file contains different classes and methods.
         """
         actions_dir = pathlib.Path(self.GAME.GAME_DIR, "actions")
+        if not actions_dir.exists():
+            actions_dir.mkdir()
         actions_files = list(actions_dir.rglob("*.py"))
         logger.debug(f"Files: {actions_files}")
 
@@ -253,12 +255,17 @@ class ActionsManager(GameComponentManager):
 
         This should be used when an action is triggered by the user.
         """
+
+        region = self.REGIONS_MANAGER.selected_region
+
+        if (
+            action.regions_available
+            and region.name not in action.regions_available
+        ):
+            # Only some regions and the current region is not in
+            self.logger.warn(f"{action} not available for {region}.")
+            return
+
         pygame.event.post(
-            Event(
-                pysimgame.ActionUsed,
-                {
-                    "action": action,
-                    "region": self.REGIONS_MANAGER.selected_region,
-                },
-            )
+            Event(pysimgame.ActionUsed, {"action": action, "region": region})
         )

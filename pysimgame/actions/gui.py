@@ -37,23 +37,10 @@ class ActionsGUIManager(GameComponentManager):
     _current_actions_dict: ActionsDict
 
     def prepare(self):
-        # Create a ui manager for this component
-        display_size = self.GAME_MANAGER.MAIN_DISPLAY.get_size()
-        self.UI_MANAGER = UIManager(
-            display_size,
-            self.GAME.SETTINGS["Themes"].get("actions", "default"),
-        )
-        window = UIWindow(
-            rect=pygame.Rect(100, 100, 500, 500),
-            manager=self.UI_MANAGER,
-            window_display_title="Actions",
-            resizable=True,
-        )
+        self.UI_MANAGER = self.GAME_MANAGER.UI_MANAGER
         self.CONTAINER = UIColumnContainer(
-            window.window_element_container.get_relative_rect(),
+            relative_rect=self.GAME_MANAGER.LEFT_PANEL,
             manager=self.UI_MANAGER,
-            container=window.window_element_container,
-            parent_element=window,
         )
 
     def connect(self):
@@ -63,6 +50,7 @@ class ActionsGUIManager(GameComponentManager):
         self.MODEL_MANAGER = self.GAME_MANAGER.MODEL_MANAGER
         self._current_actions_dict = self.ACTIONS_MANAGER.actions
         self._create_actions_menu(self.ACTIONS_MANAGER.actions)
+        # self.CONTAINER.hide()
 
     def _update_for_new_dict(self, new_dict: ActionsDict):
         """Update the actions gui for the new actions dict."""
@@ -71,8 +59,6 @@ class ActionsGUIManager(GameComponentManager):
             return
         self._current_actions_dict = new_dict
         self._create_actions_menu(new_dict)
-        # Send message that has been updated
-        self.update()
 
     def _create_actions_menu(self, actions_dict: ActionsDict):
         """Create the buttons with the actions for the actions dict."""
@@ -158,11 +144,8 @@ class ActionsGUIManager(GameComponentManager):
 
         When a button is clicked.
         """
-        self.UI_MANAGER.process_events(event)
         match event:
-            case EventType(
-                type=pygame.USEREVENT, user_type=pygame_gui.UI_BUTTON_PRESSED
-            ):
+            case EventType(type=pygame_gui.UI_BUTTON_PRESSED):
                 name = event.ui_element.text
                 if "#action_button" in event.ui_object_id:
                     # Activate the action
@@ -173,20 +156,17 @@ class ActionsGUIManager(GameComponentManager):
                         action.activate()
                     self.ACTIONS_MANAGER.post_event(action)
 
-                    logger.info(
+                    self.logger.info(
                         f"Action selected {self._current_actions_dict[name]}"
                     )
                 elif "#actions_type_button" in event.ui_object_id:
 
-                    logger.debug(f"Action types selected {name}")
+                    self.logger.debug(f"Action types selected {name}")
                     # Redraw the gui with the new selected action
                     self._update_for_new_dict(self._current_actions_dict[name])
                 else:
-                    logger.debug(f"Other event {event}")
-            case EventType(
-                type=pygame.USEREVENT,
-                user_type=pygame_gui.UI_HORIZONTAL_SLIDER_MOVED,
-            ):
+                    self.logger.debug(f"Other event {event}")
+            case EventType(type=pygame_gui.UI_HORIZONTAL_SLIDER_MOVED):
                 if "#budget_slider" in event.ui_object_id:
                     label: UILabel = event.ui_element.label
                     label.set_text(f"{event.ui_element.get_current_value()}")
@@ -195,11 +175,6 @@ class ActionsGUIManager(GameComponentManager):
                     self.ACTIONS_MANAGER.post_event(event.ui_element.action)
 
             case EventType(type=pysimgame.ActionUsed):
-                print(pysimgame.ActionUsed)
-                logger.info(f"ActionUsed {event}")
+                self.logger.info(f"ActionUsed {event}")
             case _:
                 pass
-
-    def draw(self):
-        """Draw the actions gui on the main display."""
-        self.UI_MANAGER.draw_ui(self.GAME_MANAGER.MAIN_DISPLAY)

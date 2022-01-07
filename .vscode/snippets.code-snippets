@@ -36,7 +36,7 @@
 	"case Button Clicked": {
 		"scope": "python",
 		"prefix": "case Event EventType Button Clicked",
-		"body": "\tcase EventType(type=pygame.USEREVENT, user_type=pygame_gui.UI_BUTTON_PRESSED, ui_element=..., ui_object_id=...):\n\t\t...",
+		"body": "\tcase pygame.event.EventType(type=pygame_gui.UI_BUTTON_PRESSED, ui_element=..., ui_object_id=...):\n\t\t...",
 		"description": "Case event is a button clicked"
 	},
 }

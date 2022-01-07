@@ -196,11 +196,13 @@ class GameManager(GameComponentManager):
 
     # Dispaly for rendering everything
     MAIN_DISPLAY: pygame.Surface = None
+    RIGHT_PANEL: pygame.Rect
     # Stores the policies waiting to be processed
     policy_queue: Queue[Policy]
 
     def __init__(self) -> None:
         """Override the main :py:class:`GameManager` is the main organizer."""
+        self._set_logger()
         global _GAME_MANAGER
         if _GAME_MANAGER is None:
             _GAME_MANAGER = self
@@ -262,19 +264,25 @@ class GameManager(GameComponentManager):
 
     def _prepare_components(self):
         # Regions have to be loaded first as they are used by the othres
-        logger.info("[START] Prepare to start new game.")
+        self.logger.info("[START] Prepare to start new game.")
         self._is_loading = True
         start_time = time.time()
         # Create the main display (MUST NOT DO THAT IN A THREAD !)
         # (because the display will be cleared at end of thread)
         self.MAIN_DISPLAY
         # TODO: add the theme path
-        self.UI_MANAGER = UIManager(self.MAIN_DISPLAY.get_size())
+        x, y = size = self.MAIN_DISPLAY.get_size()
+        self.UI_MANAGER = UIManager(size)
+        ratio = 1 / 4
+        self.RIGHT_PANEL = pygame.Rect((1 - ratio) * x, 50, ratio * x, y - 50)
+        self.LEFT_PANEL = pygame.Rect(0, 0, ratio * x, y)
         # Set the queue for processing of the policies
         self.policy_queue = Queue()
 
         # Launch a thread for the loading display
-        loading_thread = Thread(target=self._loading_loop, name="Loading")
+        loading_thread = Thread(
+            target=self._loading_loop, name="LoadingThread"
+        )
         loading_thread.start()
 
         def start_manager(manager_class: Type[GameComponentManager]):
@@ -291,7 +299,7 @@ class GameManager(GameComponentManager):
         # local ressource but in the future we might want to have some
         # networking processes to download some content.
         with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="managerPrepare"
+            thread_name_prefix="ManagerPrepare"
         ) as executor:
 
             future_to_manager = {
@@ -310,7 +318,7 @@ class GameManager(GameComponentManager):
                 else:
                     self.MANAGERS[manager_class] = manager
 
-        logger.info(f"MANAGERS : {self.MANAGERS}")
+        self.logger.debug(f"MANAGERS : {self.MANAGERS}")
         # Assign some specific managers as variable
         # TODO: make this more moddable by using different classes ?
         # Ex. a find ___ manager method
@@ -327,11 +335,11 @@ class GameManager(GameComponentManager):
         )
 
         # Loading is finished (used in the loading screen loop)
-        logger.debug(f" _is_loading {self._is_loading}")
+        self.logger.debug(f" _is_loading {self._is_loading}")
         self._is_loading = False
         # Display thread is showing the loading screen
         loading_thread.join()
-        logger.info(
+        self.logger.info(
             "[FINISHED] Prepare to start new game. "
             "Loading Time: {} sec.".format(time.time() - start_time)
         )
@@ -366,7 +374,7 @@ class GameManager(GameComponentManager):
                     event.type == pygame.KEYDOWN
                     and event.key == pygame.K_ESCAPE
                 ):
-                    print("Quit")
+                    self.logger.info("Quitting during loading.")
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.USEREVENT:
@@ -445,22 +453,7 @@ class GameManager(GameComponentManager):
             for event in events:
                 self.process_event(event)
 
-            self.MAIN_DISPLAY.fill(BACKGROUND_COLOR)
-
-            self.REGIONS_MANAGER.update()
-
-            self.UI_MANAGER.update(time_delta / 1000.0)
-            for manager in self.MANAGERS.values():
-                if hasattr(manager, "UI_MANAGER"):
-                    # Handles the actions for pygame_gui UIManagers
-                    manager.UI_MANAGER.update(time_delta / 1000.0)
-                manager.draw()
-
-            self.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
-            self.STATISTICS_MANAGER.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
-            self.MENU_OVERLAY.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
-
-            pygame.display.update()
+            self.draw(time_delta)
 
     def process_event(self, event: Event):
         logger.debug(f"Processing {event}")
@@ -514,6 +507,26 @@ class GameManager(GameComponentManager):
                 logger.debug(f"Found Space")
 
                 self.change_model_pause_state()
+
+    def draw(self, time_delta: float):
+        """Draw the game components on the main display.
+
+        Note that the time delta is required to update pygame_gui's
+        managers.
+        """
+        self.MAIN_DISPLAY.fill(BACKGROUND_COLOR)
+
+        self.REGIONS_MANAGER.update()
+
+        self.UI_MANAGER.update(time_delta / 1000.0)
+        for manager in self.MANAGERS.values():
+            if hasattr(manager, "UI_MANAGER"):
+                # Handles the actions for pygame_gui UIManagers
+                manager.UI_MANAGER.update(time_delta / 1000.0)
+                manager.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
+            manager.draw()
+        self.UI_MANAGER.draw_ui(self.MAIN_DISPLAY)
+        pygame.display.update()
 
     # endregion During Game
     # region Setting Menu
