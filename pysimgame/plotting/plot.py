@@ -16,12 +16,15 @@ if TYPE_CHECKING:
 class PlotLine:
     """A line that will be plotted using the matplotlib plot function.
 
-    Any kwargs you want to pass can be done using  kwargs ={}.
+    Any kwargs that should be passed to plt.plot
+    can be done using  kwargs ={}.
     """
 
     region: str
     attribute: str
     kwargs: dict = field(default_factory=dict)
+    share_y: bool = True
+    y_lims: list = None
 
 
 def plot(

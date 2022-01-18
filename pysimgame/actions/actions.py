@@ -36,7 +36,7 @@ from pysimgame.utils.logging import register_logger
 if TYPE_CHECKING:
     from pysimgame.model import ModelManager
     from pysimgame.regions_display import RegionComponent
-    from pysimgame.types import ModelType
+    from pysimgame.types import AttributeName, ModelType
 
 _ACTION_MANAGER: ActionsManager
 
@@ -137,6 +137,9 @@ class Policy(BaseAction):
 
     modifiers: List[Callable]
     activated: bool = False
+    original_methods: Dict[AttributeName, Callable] = field(
+        default_factory=dict
+    )
 
 
 @dataclass(kw_only=True)
@@ -199,7 +202,11 @@ def change_constant(
 def change_method(
     method_name: str, new_method: Callable
 ) -> Tuple[str, Callable[[ModelType], float]]:
-    """Change a method of the model."""
+    """Change a method of the model.
+
+    :param method_name: The name of the variable to change.
+    :new method: The function that should replace it.
+    """
     return (method_name, new_method)
 
 

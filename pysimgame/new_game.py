@@ -63,6 +63,7 @@ def update_model_file(game: Game | str):
     game = Game(game)
     model_file = game.PYSD_MODEL_FILE.with_suffix(".mdl")
     parse_model_file(model_file, game.GAME_DIR)
+    print("Model updated.")
 
 
 def parse_model_file(model_filepath: pathlib.Path, game_path: pathlib.Path):

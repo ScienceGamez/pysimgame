@@ -44,7 +44,7 @@ from .utils.directories import (
     PYSDGAME_DIR,
     REGIONS_FILE_NAME,
 )
-from .utils.logging import logger, logger_enter_exit
+from .utils.logging import PopUpHandler, logger, logger_enter_exit
 from .utils.pysimgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
 
 if TYPE_CHECKING:
@@ -191,6 +191,8 @@ class GameManager(GameComponentManager):
     ACTIONS_MANAGER: ActionsManager
     REGIONS_MANAGER: RegionsManager
     MENU_OVERLAY: MenuOverlayManager
+
+    POPUP_LOGGER: logging.Logger
     # Stores the time
     CLOCK: pygame.time.Clock
 
@@ -273,6 +275,9 @@ class GameManager(GameComponentManager):
         # TODO: add the theme path
         x, y = size = self.MAIN_DISPLAY.get_size()
         self.UI_MANAGER = UIManager(size)
+        self.POPUP_LOGGER = logging.getLogger("PopUps")
+        self.POPUP_LOGGER.addHandler(PopUpHandler(self.UI_MANAGER))
+        # Split screen in panels
         ratio = 1 / 4
         self.RIGHT_PANEL = pygame.Rect((1 - ratio) * x, 50, ratio * x, y - 50)
         self.LEFT_PANEL = pygame.Rect(0, 0, ratio * x, y)

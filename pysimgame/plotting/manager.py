@@ -112,7 +112,7 @@ class PlotsManager(GameComponentManager):
     ui_plot_windows: Dict[str, UIPlotWindow]
     GAME_MANAGER: GameManager
     MODEL_MANAGER: ModelManager
-    axes: Dict[str, matplotlib.axes.Axes]
+    axes: Dict[str, List[matplotlib.axes.Axes]]
     lines: Dict[str, List[Line2D]]
     _connected: bool = False
     region_colors: Dict[str, Tuple[float, float, float, float]]
@@ -182,9 +182,6 @@ class PlotsManager(GameComponentManager):
         # Create a df containing regions and alements
         self.df_keys = self.model_outputs.keys().to_frame(index=False)
 
-        # Time axis
-        self.time_axis = MODEL_MANAGER.time_axis
-
         # Load the plots
         plots_dir = pathlib.Path(self.GAME.GAME_DIR, "plots")
         if not plots_dir.exists():
@@ -238,8 +235,13 @@ class PlotsManager(GameComponentManager):
                 resizable=True,
             )
             self.ui_plot_windows[plot_name] = plot_window
+            # The first ax is automatically the first line
+            self.axes[plot_name] = [ax]
+            for plot_line in self.plots[plot_name].plot_lines[1:]:
+                # If other plot lines have different y values
+                if not plot_line.share_y:
+                    self.axes[plot_name].append(ax.twinx())
 
-            self.axes[plot_name] = ax
             self.lines[plot_name] = []
 
             # plot_window.get_container().set_image(figure)
@@ -323,7 +325,7 @@ class PlotsManager(GameComponentManager):
         All the windows are updated with their parameters one by one.
         """
         model_outputs = self.MODEL_MANAGER.outputs
-        x = self.MODEL_MANAGER.time_axis
+        x = self.MODEL_MANAGER.time_axis.copy()
         if len(model_outputs) < 2:
             # Cannot plot lines if only one point
             return
@@ -338,20 +340,29 @@ class PlotsManager(GameComponentManager):
                 self._create_plot_window(plot_window)
 
             # First get the ax and cleans it
-            ax = self.axes[plot_name]
-            ax.clear()
+            axes = self.axes[plot_name]
+            for ax in axes:
+                ax.clear()
+                ax.set_xlim(x[0], x[-1])
+
+            # Will follow the ax on which to plot
+            ax_index = int(0)
             # Plot all the lines required
             for plot_line in self.plots[plot_name].plot_lines:
+                ax = axes[ax_index]
+                ax_index += 0 if plot_line.share_y else 1
 
+                if plot_line.y_lims is not None:
+                    ax.set_ylim(plot_line.y_lims)
                 # Gets the attributes
                 y = (
                     self.model_outputs[plot_line.region, plot_line.attribute]
                     .to_numpy()
                     .reshape(-1)
                 )
-                ax.set_xlim(self.time_axis[0], self.time_axis[-1])
+
                 artists = ax.plot(
-                    self.time_axis,
+                    x,
                     y,
                     # color=self.region_colors[plot_line.region],
                     label=" ".join((plot_line.region, plot_line.attribute)),
@@ -361,6 +372,7 @@ class PlotsManager(GameComponentManager):
                     f"Plotting {plot_line.region} {plot_line.attribute}."
                 )
                 logger.debug(f"Setting: \n x: {x} \n y: {y}.")
+
             ax.legend()
 
             # lock the figsurface, so it is not used during the drawing

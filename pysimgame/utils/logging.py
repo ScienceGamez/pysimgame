@@ -2,7 +2,10 @@ import functools
 import logging
 from typing import Callable
 
+import pygame
 import pysimgame
+from pygame_gui.ui_manager import UIManager
+from pygame_gui.windows import UIMessageWindow
 
 # Logging parameters
 formatter = logging.Formatter(
@@ -71,3 +74,28 @@ def logger_enter_exit(
         return wrapper
 
     return decorator
+
+
+class PopUpHandler(logging.Handler):
+    def __init__(
+        self, ui_manager: UIManager, rect: pygame.Rect = None
+    ) -> None:
+        super().__init__()
+        self.ui_manager = ui_manager
+        if rect is None:
+            x, y = self.ui_manager.window_resolution
+            self.rect = pygame.Rect(x / 3, y / 3, x / 3, y / 3)
+        elif isinstance(rect, pygame.Rect):
+            self.rect = rect
+        else:
+            raise TypeError(
+                f"rect kwarg must be pygame.Rect, not {type(rect)}."
+            )
+
+    def emit(self, record: logging.LogRecord) -> None:
+        window = UIMessageWindow(
+            self.rect,
+            html_message=record.msg,
+            manager=self.ui_manager,
+            window_title="",
+        )
