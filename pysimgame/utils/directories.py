@@ -5,9 +5,13 @@ import pathlib
 import pysimgame
 
 # TODO: check for linux and macos
-_app_data_dir = os.environ["APPDATA"]
+if "APPDATA" in os.environ:
+    app_data_dir = os.environ["APPDATA"]
+    PYSDGAME_DIR = pathlib.Path(app_data_dir, "pysimgame")
+else:
+    # Not windows
+    PYSDGAME_DIR = pathlib.Path(pathlib.Path.home(), ".pysimgame")
 
-PYSDGAME_DIR = pathlib.PurePath(_app_data_dir, "pysimgame")
 
 # Themes can be shared across the different games
 THEMES_DIR = os.path.join(PYSDGAME_DIR, "themes")
@@ -15,7 +19,7 @@ DEFAULT_THEMES_DIR = os.path.join(*pysimgame.__path__, "themes")
 
 SETTINGS_DIR = os.path.join(PYSDGAME_DIR, "settings")
 
-DESKTOP_DIR = os.path.join(os.path.join(os.environ["USERPROFILE"]), "Desktop")
+# DESKTOP_DIR = os.path.join(os.path.join(os.environ["USERPROFILE"]), "Desktop")
 
 REGIONS_FILE_NAME = "regions.json"
 THEME_FILENAME = "theme.json"
