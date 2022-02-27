@@ -2,12 +2,7 @@
 from __future__ import annotations
 
 import json
-import logging
-import os
 import re
-import shutil
-import threading
-from dataclasses import dataclass
 from functools import cached_property, singledispatchmethod
 from pathlib import Path
 from threading import Lock, Thread
@@ -653,7 +648,7 @@ class ModelManager(GameComponentManager):
 
     @process_action.register
     def _(self, policy: Policy, region: str):
-        logger.info(f"processing policy {policy}")
+        self.logger.info(f"processing policy: {policy.name}")
         model: pysd.statefuls.Model = self[region]
         if policy.activated:
             for model_dependent_method in policy.modifiers:
@@ -666,19 +661,21 @@ class ModelManager(GameComponentManager):
                 policy.original_methods[attr_name] = getattr(
                     model.components, attr_name
                 )
-                logger.debug(getattr(model.components, attr_name))
+                self.logger.debug(getattr(model.components, attr_name))
                 model.set_components({attr_name: new_func})
                 # setattr(model.components, attr_name, new_func)
-                logger.debug(getattr(model.components, attr_name))
-                logger.debug(f"Setting {attr_name} of {model} to {new_func}")
+                self.logger.debug(getattr(model.components, attr_name))
+                self.logger.debug(
+                    f"Setting {attr_name} of {model} to {new_func}"
+                )
         else:  # not activated
-            logger.debug(f"Deactivating {policy}.")
+            self.logger.debug(f"Deactivating {policy.name}.")
             # Restore the original methods
             model.set_components(policy.original_methods)
 
     @process_action.register
     def _(self, action: Edict, region: str):
-        logger.info(f"processing Edict {action}")
+        self.logger.info(f"processing Edict {action}")
 
     @process_action.register
     def _register_budget(self, budget: Budget, region: str):

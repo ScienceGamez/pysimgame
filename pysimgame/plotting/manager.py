@@ -206,6 +206,9 @@ class PlotsManager(GameComponentManager):
 
     def add_plot(self, name: str, plot: Plot):
         """Add a :py:class:`Plot` to the manager."""
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.debug(f"Adding {plot = }")
+        self.logger.debug(f"{plot.plot_lines = }")
         if name in self.plots.keys():
             # Already there
             self.logger.warn(f"{name} already in plots.")
@@ -216,13 +219,15 @@ class PlotsManager(GameComponentManager):
 
         if self._connected:
             self._create_plot_window(name)
+        self.logger.setLevel(logging.INFO)
 
-    def _create_plot_window(self, plot_name: str):
+    def _create_plot_window(self, plot_name: str | Plot):
         """Create the plot on the window.
 
         Assume plot_window has regions and attributes it need to plot.
         """
-
+        if not isinstance(plot_name, str):
+            plot_name = plot_name.name
         if plot_name not in self.ui_plot_windows.keys():
             # Needs to recall the ui to update
             figure, ax = plt.subplots(1, 1)
@@ -337,7 +342,7 @@ class PlotsManager(GameComponentManager):
                 continue
 
             if not plot_window._created:
-                self._create_plot_window(plot_window)
+                self._create_plot_window(plot_name)
 
             # First get the ax and cleans it
             axes = self.axes[plot_name]
@@ -356,16 +361,33 @@ class PlotsManager(GameComponentManager):
                     ax.set_ylim(plot_line.y_lims)
                 # Gets the attributes
                 y = (
-                    self.model_outputs[plot_line.region, plot_line.attribute]
-                    .to_numpy()
-                    .reshape(-1)
+                    (
+                        self.model_outputs[
+                            plot_line.region, plot_line.attribute
+                        ]
+                        .to_numpy()
+                        .reshape(-1)
+                    )
+                    if isinstance(plot_line.attribute, str)
+                    else np.c_[  # Concatenate the values
+                        [
+                            self.model_outputs[plot_line.region, attr]
+                            .to_numpy()
+                            .reshape(-1)
+                            for attr in plot_line.attribute
+                        ]
+                    ].T
                 )
-
+                if "label" not in plot_line.kwargs:
+                    plot_line.kwargs[
+                        "label"
+                    ] = plot_line.attribute or " ".join(
+                        (plot_line.region, plot_line.attribute)
+                    )
                 artists = ax.plot(
                     x,
                     y,
                     # color=self.region_colors[plot_line.region],
-                    label=" ".join((plot_line.region, plot_line.attribute)),
                     **plot_line.kwargs,
                 )
                 logger.debug(
@@ -373,7 +395,7 @@ class PlotsManager(GameComponentManager):
                 )
                 logger.debug(f"Setting: \n x: {x} \n y: {y}.")
 
-            ax.legend()
+                ax.legend()
 
             # lock the figsurface, so it is not used during the drawing
             self._figsurface_locks[plot_name].acquire()
