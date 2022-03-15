@@ -21,7 +21,7 @@ class PlotLine:
     """
 
     region: str
-    attribute: str
+    attribute: str | List[str]
     kwargs: dict = field(default_factory=dict)
     share_y: bool = True
     y_lims: list = None
@@ -38,7 +38,7 @@ def plot(
 
 
 class Plot:
-
+    name: str
     plot_lines: List[PlotLine]
     plot_method: Callable
 
@@ -65,13 +65,17 @@ class Plot:
         """Create a plot object."""
         if not isinstance(name, str):
             logging.getLogger(__name__).error("Plot name must be str.")
-
+        self.name = name
         from .manager import _PLOT_MANAGER
 
         game = _PLOT_MANAGER.GAME
         if regions is None:
             # None means all regions
-            regions = list(game.REGIONS_DICT.keys()) if not args else []
+            regions = (
+                list(game.REGIONS_DICT.keys())
+                if not args or attributes is not None
+                else []
+            )
         if attributes is None:
             attributes = (
                 _PLOT_MANAGER.MODEL_MANAGER.capture_attributes
@@ -85,7 +89,7 @@ class Plot:
         # Adds the lines specified by the user
 
         self.plot_lines = list(args) + [
-            PlotLine(reg, attr) for attr in attributes for reg in regions
+            PlotLine(reg, attributes) for reg in regions
         ]
 
         _PLOT_MANAGER.add_plot(name, self)
