@@ -40,7 +40,7 @@ class AbstractPlotsManager(GameComponentManager):
         """Show all the available plots."""
         ...
 
-    def process_events(self, event: pygame.event.Event):
+    def process_events(self, event: pygame.event.Event) -> bool:
         """Listen to the events that require drawing a plot."""
         ...
         # TODO implement the events

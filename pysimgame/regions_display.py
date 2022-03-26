@@ -413,7 +413,7 @@ class RegionsManager(GameComponentManager):
         self._previous_hovered = hovered_region
         return True
 
-    def process_events(self, event: pygame.event.Event):
+    def process_events(self, event: pygame.event.Event) -> bool:
         """Listen the events for this manager."""
         match event:
             case pygame.event.EventType(

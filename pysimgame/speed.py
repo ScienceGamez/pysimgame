@@ -119,7 +119,7 @@ class SpeedManager(GameComponentManager):
         )
         pygame.event.post(event)
 
-    def process_events(self, event: pygame.event.Event):
+    def process_events(self, event: pygame.event.Event) -> bool:
         """Listen the events for this manager."""
         match event:
 

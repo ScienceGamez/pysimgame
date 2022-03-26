@@ -471,12 +471,16 @@ class GameManager(GameComponentManager):
                 pygame.quit()
                 sys.exit()
             case EventType(type=pygame.TEXTINPUT):
-                self._process_textinput_event(event)
+                if self._process_textinput_event(event):
+                    # Consumed event
+                    return
             case EventType(type=pysimgame.events.TogglePaused):
                 self.change_model_pause_state()
 
         for manager in self.MANAGERS.values():
-            manager.process_events(event)
+            if manager.process_events(event):
+                # Consumed event are blocked for other managers
+                return
 
     def _start_new_model_thread(self):
         """Start a new thread for the model.
@@ -505,13 +509,19 @@ class GameManager(GameComponentManager):
             self.MODEL_MANAGER.pause()
         # Space set the game to pause or play
 
-    def _process_textinput_event(self, event):
-        logger.debug(f"Processing TextInput.text: {event.text}.")
+    def _process_textinput_event(self, event) -> bool:
+        """Special handling of text input events.
+
+        The event must be a pygame.TEXTINPUT event.
+        Convert them into pysimgame events.
+        """
+        self.logger.debug(f"Processing TextInput.text: {event.text}.")
         match event.text:
             case " ":
-                logger.debug(f"Found Space")
+                self.logger.debug(f"Found Space")
 
                 self.change_model_pause_state()
+                return True
 
     def draw(self, time_delta: float):
         """Draw the game components on the main display.

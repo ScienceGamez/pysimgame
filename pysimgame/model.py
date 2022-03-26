@@ -621,7 +621,7 @@ class ModelManager(GameComponentManager):
                 f"Model step executed in {ms_step} ms, ticked {ms} ms."
             )
 
-    def process_events(self, event: pygame.event.Event):
+    def process_events(self, event: pygame.event.Event) -> bool:
         """Listen the events for this manager."""
         match event:
 

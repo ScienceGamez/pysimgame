@@ -289,7 +289,7 @@ class PlotsManager(AbstractPlotsManager):
 
     # Adding plots methods
 
-    def process_events(self, event: pygame.event.Event):
+    def process_events(self, event: pygame.event.Event) -> bool:
         """Process the events from the main loop."""
         self._UI_MANAGER.process_events(event)
         match event:

@@ -122,9 +122,18 @@ class GameComponentManager(ABC):
         """
         pass
 
-    def process_events(self, event: pygame.event.Event):
-        """Called in the game manager for listening to the events."""
-        pass
+    def process_events(self, event: pygame.event.Event) -> bool:
+        """Process events.
+
+        Called in the game manager for listening to the events.
+
+        :param event: _description_
+        :return: True if the event was consumed by the manager and
+            should not be passed to the following managers.
+            Other wise return False.
+            If None is return, it is considered as False.
+        """
+        return False
 
     def save(self, save_dir: pathlib.Path):
         """Save component content when the users saves game.

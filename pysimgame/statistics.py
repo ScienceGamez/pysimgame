@@ -141,7 +141,7 @@ class StatisticsDisplayManager(GameComponentManager):
         for element, label in self.labels.items():
             label.set_text("{:1.3f}".format(model[element]))
 
-    def process_events(self, event: pygame.event.Event):
+    def process_events(self, event: pygame.event.Event) -> bool:
         self.UI_MANAGER.process_events(event)
         match event:
             case EventType(type=pysimgame.events.RegionFocusChanged):
