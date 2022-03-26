@@ -4,6 +4,12 @@ Custom pygame events declaration for pysimgame.
 """
 import pygame
 
+# The following file will list all the events from pysimgame
+# It is important to register all the events there so that
+# when we use networking, the events are register in the same
+# order for the clients and server, thus ensuring consistency
+
+
 # When another region is selected
 # {'region': RegionComponent, ?}
 RegionFocusChanged = pygame.event.custom_type()
@@ -28,3 +34,7 @@ ModelStepped = pygame.event.custom_type()
 TogglePaused = pygame.event.custom_type()
 Paused = pygame.event.custom_type()
 UnPaused = pygame.event.custom_type()
+
+# Plotting events
+OpenPlot = pygame.event.custom_type()
+ClosePlot = pygame.event.custom_type()

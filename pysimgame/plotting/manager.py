@@ -29,6 +29,7 @@ from pygame_matplotlib import pygame_color_to_plt
 from pygame_matplotlib.backend_pygame import FigureSurface
 from pygame_matplotlib.gui_window import UIPlotWindow
 from pysimgame.model import ModelManager
+from pysimgame.plotting.base import AbstractPlotsManager
 from pysimgame.utils import GameComponentManager
 from pysimgame.utils.logging import logger
 from pysimgame.utils.strings import beautify_parameter_name
@@ -97,7 +98,7 @@ class PysgamePlotWindow(UIPlotWindow):
         )
 
 
-class PlotsManager(GameComponentManager):
+class PlotsManager(AbstractPlotsManager):
     """A manager for plots.
 
     Register all the plots that were created and that are now active.
@@ -133,7 +134,7 @@ class PlotsManager(GameComponentManager):
 
     def prepare(self):
         """Prepare the graph manager."""
-
+        super().prepare()
         self.ui_plot_windows = {}
         self.axes = {}
         self.lines = {}
