@@ -68,7 +68,7 @@ class _LOGGING_CONFIG(dict):
         """Save the logging config."""
         LOGGING_FILE = Path(PYSDGAME_SETTINGS["logging_config"])
         with LOGGING_FILE.open("w") as f:
-            json.dump(self, f)
+            json.dump(self, f, indent=4)
 
     def load(self):
         """Load the config form the file."""
