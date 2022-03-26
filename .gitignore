@@ -17,6 +17,7 @@
 # Python
 __pycache__
 *.egg-info
+dist/*
 
 # documentation builds
 docs/build
