@@ -1,11 +1,24 @@
 import functools
 import logging
+import logging.config
+from pathlib import Path
 from typing import Callable
 
 import pygame
 import pysimgame
 from pygame_gui.ui_manager import UIManager
 from pygame_gui.windows import UIMessageWindow
+from pysimgame.utils.directories import PYSDGAME_DIR
+from pysimgame.utils.pysimgame_settings import PYSDGAME_SETTINGS
+
+# Find the logging config file
+if "logging_config" not in PYSDGAME_SETTINGS:
+    PYSDGAME_SETTINGS["logging_config"] = Path(PYSDGAME_DIR, "logging_config")
+
+LOGGING_FILE = Path(PYSDGAME_SETTINGS["logging_config"])
+LOGGING_FILE.touch()
+logging.config.fileConfig(LOGGING_FILE)
+
 
 # Logging parameters
 formatter = logging.Formatter(
