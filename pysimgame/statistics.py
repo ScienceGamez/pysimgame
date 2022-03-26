@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 from pysimgame.utils import GameComponentManager
 from pysimgame.utils.dynamic_menu import UIColumnContainer
-from pysimgame.utils.logging import logger
 
 
 class StatisticsDisplayManager(GameComponentManager):
@@ -53,7 +52,7 @@ class StatisticsDisplayManager(GameComponentManager):
         )
         regions = list(self.GAME.REGIONS_DICT.keys())
         container_size = self.CONTAINER.get_container().get_size()
-        logger.debug(f"container size: {container_size}")
+        self.logger.debug(f"container size: {container_size}")
         self.REGIONS_HEIGTH = 40
         if not self.GAME.SINGLE_REGION:
             self.drop_down = UIDropDownMenu(
@@ -96,10 +95,10 @@ class StatisticsDisplayManager(GameComponentManager):
     def _create_line(self, name: str):
         """Create a line in the column container with the stat."""
         w, h = self.CONTAINER.get_container().get_size()
-        logger.debug(f"container size: {w,h}")
+        self.logger.debug(f"container size: {w,h}")
         # Hard code the height or put in settings ?
         h = 30
-        logger.debug(f"height: {h}")
+        self.logger.debug(f"height: {h}")
         doc = self.MODEL_MANAGER.doc[name]
         button = UIButton(
             pygame.Rect(0, 0, w * 0.7, h),
@@ -173,5 +172,5 @@ class StatisticsDisplayManager(GameComponentManager):
             and event.user_type == pygame_gui.UI_BUTTON_DOUBLE_CLICKED
             and event.ui_element in self.buttons.values()
         ):
-            logger.debug("Got ")
+            self.logger.debug("Got ")
             pass

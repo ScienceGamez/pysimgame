@@ -20,7 +20,7 @@ from pysimgame.links.shared_variables import SharedVariables
 from pysimgame.regions_display import RegionComponent
 from pysimgame.utils import GameComponentManager
 
-from .utils.logging import logger, logger_enter_exit
+from .utils.logging import logger_enter_exit
 
 if TYPE_CHECKING:
     import pysd
@@ -128,7 +128,7 @@ class ModelManager(GameComponentManager):
                 }
 
             except Exception as exp:
-                logger.warning(
+                self.logger.warning(
                     f"Could not parse docstring of '{varname}' due to '{exp}'"
                 )
                 collector[varname] = {
@@ -152,7 +152,7 @@ class ModelManager(GameComponentManager):
     @fps.setter
     def fps(self, new_fps: float):
         if new_fps < 0:
-            logger.error(f"FPS must be positive not {new_fps}.")
+            self.logger.error(f"FPS must be positive not {new_fps}.")
         else:
             self._fps = new_fps
 
@@ -166,7 +166,7 @@ class ModelManager(GameComponentManager):
         if self._elements_names is None:
             # Reads the first models components
             self._elements_names = list(self.model._namespace.values())
-            logger.debug(
+            self.logger.debug(
                 f"All the model.components elements: {self._elements_names}"
             )
         elements_names = self._elements_names.copy()
@@ -226,7 +226,7 @@ class ModelManager(GameComponentManager):
             [regions, self.capture_attributes],
             names=["regions", "elements"],
         )
-        logger.debug(f"Created Index {index}")
+        self.logger.debug(f"Created Index {index}")
         self.outputs = pd.DataFrame(columns=index)
         # Sort the indexes for performance
         self.outputs.sort_index()
@@ -376,7 +376,7 @@ class ModelManager(GameComponentManager):
                 with open(elements_file, "w") as f:
                     f.writelines("\n".join(elements))
         self._capture_attributes = elements
-        logger.debug(f"Set captured elements: {elements}")
+        self.logger.debug(f"Set captured elements: {elements}")
 
     def connect(self):
         """Connect the components required by the Model Manager.
@@ -596,7 +596,7 @@ class ModelManager(GameComponentManager):
             self._paused = True
         event = pygame.event.Event(pysimgame.events.Paused, {})
         pygame.event.post(event)
-        logger.info("Model paused.")
+        self.logger.info("Model paused.")
 
     def is_paused(self) -> bool:
         """Return True if the game is paused else False."""
@@ -610,14 +610,14 @@ class ModelManager(GameComponentManager):
         """
         with Lock():
             self._paused = False
-        logger.info("Model started.")
+        self.logger.info("Model started.")
         self.clock.tick(self.fps)
         while not self._paused:
             self.step()
             ms = self.clock.tick(self.fps)
             # Record the exectution time
             ms_step = self.clock.get_rawtime()
-            logger.info(
+            self.logger.info(
                 f"Model step executed in {ms_step} ms, ticked {ms} ms."
             )
 
@@ -626,9 +626,9 @@ class ModelManager(GameComponentManager):
         match event:
 
             case pygame.event.EventType(type=pysimgame.ActionUsed):
-                logger.debug(f"Received action {event}")
+                self.logger.debug(f"Received action {event}")
                 if event.region is None:
-                    logger.warning(
+                    self.logger.warning(
                         f"No region is selected for action {event.action.name}"
                     )
                 else:
@@ -687,7 +687,7 @@ class ModelManager(GameComponentManager):
 
         # simply set the function to the models components
         setattr(self[region].components, budget.variable, budget_value)
-        logger.debug(f"Set {v} to {budget.variable}.")
+        self.logger.debug(f"Set {v} to {budget.variable}.")
 
     # endregion Actions
     # endregion Run

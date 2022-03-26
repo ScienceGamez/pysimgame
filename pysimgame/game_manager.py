@@ -36,7 +36,7 @@ from .regions_display import (
     RegionsManager,
     SingleRegionComponent,
 )
-from .utils import GameComponentManager, recursive_dict_missing_values
+from .utils import GameComponentManager
 from .utils.directories import (
     GAME_SETTINGS_FILENAME,
     INITIAL_CONDITIONS_FILENAME,
@@ -44,7 +44,7 @@ from .utils.directories import (
     PYSDGAME_DIR,
     REGIONS_FILE_NAME,
 )
-from .utils.logging import PopUpHandler, logger, logger_enter_exit
+from .utils.logging import PopUpHandler, logger_enter_exit
 from .utils.pysimgame_settings import PYSDGAME_SETTINGS, SETTINGS_FILE
 
 if TYPE_CHECKING:
@@ -93,6 +93,7 @@ class Game:
             return object.__new__(cls)
 
     def __init__(self, name: str | Game, create: bool = False) -> None:
+        self.logger = logging.getLogger(f"Game.{name}")
         self.NAME = name
         self.GAME_DIR = pathlib.Path(PYSDGAME_DIR, name)
         match self.GAME_DIR.exists(), create:
@@ -119,8 +120,8 @@ class Game:
         """Load the dictionary of the regions for that game."""
         with open(self.REGIONS_FILE, "r") as f:
             dic = json.load(f)
-        logger.info("Region file loaded.")
-        logger.debug(f"Region file content: {dic}.")
+        self.logger.info("Region file loaded.")
+        self.logger.debug(f"Region file content: {dic}.")
 
         return (
             {  # Load regions from what is in the file
@@ -141,8 +142,8 @@ class Game:
         # Check everything necessary is in settings, else add
         if "Themes" not in settings:
             settings["Themes"] = {}
-        logger.info("Game Settings loaded.")
-        logger.debug(f"Game Settings content: {settings}.")
+        self.logger.info("Game Settings loaded.")
+        self.logger.debug(f"Game Settings content: {settings}.")
         return settings
 
     def save_settings(self) -> None:
@@ -154,8 +155,8 @@ class Game:
 
         with open(self._SETTINGS_FILE, "w") as f:
             json.dump(f, self.SETTINGS)
-        logger.info("Game Settings saved.")
-        logger.debug(f"Game Settings content: {self.SETTINGS}.")
+        self.logger.info("Game Settings saved.")
+        self.logger.debug(f"Game Settings content: {self.SETTINGS}.")
 
     def load_model(self) -> ModelType:
         """Return a model object for doc purposes.
@@ -240,13 +241,13 @@ class GameManager(GameComponentManager):
             # Creates the game object required
             game = Game(game)
         self._game = game
-        logger.info(f"New game set: '{self.game.NAME}'.")
+        self.logger.info(f"New game set: '{self.game.NAME}'.")
 
     @property
     def MAIN_DISPLAY(self) -> pygame.Surface:
         main_display = pygame.display.get_surface()
         if main_display is None:
-            logger.debug("Creating a new display.")
+            self.logger.debug("Creating a new display.")
             # Create a new pygame window if we don't know where to render
             main_display = pygame.display.set_mode(
                 # First check if they are some specific game settings available
@@ -369,7 +370,7 @@ class GameManager(GameComponentManager):
         x, y = self.MAIN_DISPLAY.get_size()
         font_position = (x / 2 - font_surfaces[-1].get_size()[1], y / 2)
 
-        logger.debug(f"Before loop _is_loading {self._is_loading}")
+        self.logger.debug(f"Before loop _is_loading {self._is_loading}")
         counter = 0
         while self._is_loading:
             events = pygame.event.get()
@@ -383,7 +384,7 @@ class GameManager(GameComponentManager):
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.USEREVENT:
-                    logger.debug(f"User Event : {event}")
+                    self.logger.debug(f"User Event : {event}")
 
             self.MAIN_DISPLAY.fill(BACKGROUND_COLOR)
             self.MAIN_DISPLAY.blit(font_surfaces[counter % 3], font_position)
@@ -413,20 +414,20 @@ class GameManager(GameComponentManager):
         pygame.init()
         self.game = game
 
-        logger.info("Preparing the game components")
+        self.logger.info("Preparing the game components")
         self.prepare()
 
         if from_save:
-            logger.info(f"Loading from save {from_save}")
+            self.logger.info(f"Loading from save {from_save}")
             self.load(from_save)
-            logger.info(f"Save loaded {from_save}")
+            self.logger.info(f"Save loaded {from_save}")
 
-        logger.info("Connecting the game components")
+        self.logger.info("Connecting the game components")
         self.connect()
 
-        logger.info("---Game Ready---")
+        self.logger.info("---Game Ready---")
 
-        logger.debug(self.MODEL_MANAGER)
+        self.logger.debug(self.MODEL_MANAGER)
 
         # Start the simulator
         self.MODEL_THREAD.start()
@@ -442,18 +443,18 @@ class GameManager(GameComponentManager):
         TODO: Use correctly the methods from abstact region component class
         (Note that they will also require proper implementation in the children)
         """
-        logger.debug(f"[START] run_game_loop")
+        self.logger.debug(f"[START] run_game_loop")
 
         while True:
-            logger.debug(f"[START] iteration of run_game_loop")
+            self.logger.debug(f"[START] iteration of run_game_loop")
             self.fps_counter += 1
             time_delta = self.CLOCK.tick(self.game.SETTINGS.get("FPS", 20))
             ms = self.CLOCK.get_rawtime()
-            logger.debug(
+            self.logger.debug(
                 f"Game loop executed in {ms} ms, ticked {time_delta} ms."
             )
             events = pygame.event.get()
-            logger.debug(f"Events: {events}")
+            self.logger.debug(f"Events: {events}")
             # Lood for quit events
             for event in events:
                 self.process_event(event)
@@ -461,7 +462,7 @@ class GameManager(GameComponentManager):
             self.draw(time_delta)
 
     def process_event(self, event: Event):
-        logger.debug(f"Processing {event}")
+        self.logger.debug(f"Processing {event}")
         self.UI_MANAGER.process_events(event)
         match event:
             case EventType(type=pygame.QUIT) | EventType(
@@ -489,7 +490,7 @@ class GameManager(GameComponentManager):
         """
         # Ensure the thread has ended before restarting
         if self.MODEL_THREAD.is_alive():
-            logger.warn(f"{self.MODEL_THREAD} is still running.")
+            self.logger.warn(f"{self.MODEL_THREAD} is still running.")
             return
         self.MODEL_THREAD.join()
 

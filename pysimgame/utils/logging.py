@@ -1,4 +1,7 @@
+import configparser
 import functools
+import importlib.util
+import json
 import logging
 import logging.config
 from pathlib import Path
@@ -8,43 +11,93 @@ import pygame
 import pysimgame
 from pygame_gui.ui_manager import UIManager
 from pygame_gui.windows import UIMessageWindow
-from pysimgame.utils.directories import PYSDGAME_DIR
-from pysimgame.utils.pysimgame_settings import PYSDGAME_SETTINGS
+
+from .directories import PYSDGAME_DIR
+from .pysimgame_settings import PYSDGAME_SETTINGS
 
 # Find the logging config file
 if "logging_config" not in PYSDGAME_SETTINGS:
-    PYSDGAME_SETTINGS["logging_config"] = Path(PYSDGAME_DIR, "logging_config")
-
-LOGGING_FILE = Path(PYSDGAME_SETTINGS["logging_config"])
-LOGGING_FILE.touch()
-logging.config.fileConfig(LOGGING_FILE)
+    PYSDGAME_SETTINGS["logging_config"] = Path(
+        PYSDGAME_DIR, "logging_config.json"
+    )
 
 
-# Logging parameters
-formatter = logging.Formatter(
-    "%(asctime)s %(threadName)-10s %(name)s %(levelname)-8s %(message)s"
-)
-location_formatter = logging.Formatter(
-    '"%(pathname)s", line %(lineno)d, in %(module)s %(funcName)s'
-)
-console = logging.StreamHandler()
-console.setFormatter(formatter)
-console2 = logging.StreamHandler()
-console2.setFormatter(location_formatter)
+class _LOGGING_CONFIG(dict):
+    def __init__(self):
+        super().__init__(
+            {
+                "version": 1,
+                "formatters": {
+                    "default": {
+                        "class": "logging.Formatter",
+                        "format": (
+                            "%(asctime)s %(threadName)-10s %(name)s "
+                            "%(levelname)-8s %(message)s"
+                        ),
+                    },
+                    "location": {
+                        "class": "logging.Formatter",
+                        "format": (
+                            "%(asctime)s %(threadName)-10s %(name)s "
+                            "%(levelname)-8s %(message)s \n"
+                            '"%(pathname)s", line %(lineno)d, in %(module)s %(funcName)s'
+                        ),
+                    },
+                },
+                "handlers": {
+                    "console": {
+                        "class": "logging.StreamHandler",
+                        "level": "INFO",
+                        "formatter": "default",
+                    },
+                    "debug": {
+                        "class": "logging.StreamHandler",
+                        "level": "DEBUG",
+                        "formatter": "location",
+                    },
+                },
+                "loggers": {},
+                "root": {
+                    "level": "DEBUG",
+                    "handlers": ["console"],
+                },
+            }
+        )
 
-logger = logging.getLogger(pysimgame.__name__)
-logger.setLevel(pysimgame.LOGGING_LEVEL)
+    def save(self):
+        """Save the logging config."""
+        LOGGING_FILE = Path(PYSDGAME_SETTINGS["logging_config"])
+        with LOGGING_FILE.open("w") as f:
+            json.dump(self, f)
+
+    def load(self):
+        """Load the config form the file."""
+        LOGGING_FILE = Path(PYSDGAME_SETTINGS["logging_config"])
+        print(f"Loading config {LOGGING_FILE} .")
+        with LOGGING_FILE.open("r") as f:
+            LOGGING_CONFIG = json.load(f)
+
+        super().__init__(LOGGING_CONFIG)
+        logging.config.dictConfig(LOGGING_CONFIG)
+
+
+LOGGING_CONFIG = _LOGGING_CONFIG()
+
+LOGGING_CONFIG.save()
+LOGGING_CONFIG.load()
 
 
 def register_logger(logger: logging.Logger):
+    """Add a logger to pysimgame logging settings.
 
-    if logger.getEffectiveLevel() <= logging.DEBUG:
-        # Puts the file and line number before the message if DEBUG
-        logger.addHandler(console2)
-    logger.addHandler(console)
-
-
-register_logger(logger)
+    :param logger: The logger object to register.
+    """
+    if logger.name not in LOGGING_CONFIG["loggers"]:
+        LOGGING_CONFIG["loggers"][logger.name] = {
+            "level": logger.getEffectiveLevel(),
+            "handlers": ["console", "debug"],
+        }
+    LOGGING_CONFIG.save()
 
 
 def logger_enter_exit(
@@ -67,6 +120,8 @@ def logger_enter_exit(
     """
 
     def decorator(func: Callable):
+        logger = logging.getLogger(func.__name__)
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if not ignore_enter:

@@ -18,8 +18,6 @@ from pysimgame.utils.directories import (
     ORIGINAL_BACKGROUND_FILESTEM,
 )
 
-from .utils.logging import logger
-
 if TYPE_CHECKING:
     from .game_manager import GameManager
     from .types import RegionsDict
@@ -49,6 +47,7 @@ class RegionComponent:
             polygons_points: List of polygon points or list of list if multiple
                 polygons.
         """
+        self.logger = logging.getLogger(f"RegionComponent.{name}")
         self.surface = surface
         self.color = color
         self._rectangles = []
@@ -68,7 +67,7 @@ class RegionComponent:
             _REGION_COUNTER += 1
 
         self.name = name
-        logger.debug(f"Created Region Component {self}")
+        self.logger.debug(f"Created Region Component {self}")
 
     def __repr__(self) -> str:
         return f"Region(name='{self.name}')"

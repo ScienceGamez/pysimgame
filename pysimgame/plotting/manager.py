@@ -31,7 +31,6 @@ from pygame_matplotlib.gui_window import UIPlotWindow
 from pysimgame.model import ModelManager
 from pysimgame.plotting.base import AbstractPlotsManager
 from pysimgame.utils import GameComponentManager
-from pysimgame.utils.logging import logger
 from pysimgame.utils.strings import beautify_parameter_name
 
 from ..utils.maths import normalize
@@ -165,7 +164,7 @@ class PlotsManager(AbstractPlotsManager):
             for name, cmpnt in self.GAME_MANAGER.game.REGIONS_DICT.items()
             if name is not None
         }
-        logger.debug(f"Regions Color {self.region_colors}")
+        self.logger.debug(f"Regions Color {self.region_colors}")
 
     def connect(self):
         self._connect_to_model(self.GAME_MANAGER.MODEL_MANAGER)
@@ -192,7 +191,7 @@ class PlotsManager(AbstractPlotsManager):
         for file in plots_files:
             SourceFileLoader("", str(file)).load_module()
 
-        logger.debug(f"Files: {plots_files}")
+        self.logger.debug(f"Files: {plots_files}")
         # Register connected
         self._connected = True
 
@@ -252,8 +251,8 @@ class PlotsManager(AbstractPlotsManager):
 
             # plot_window.get_container().set_image(figure)
             # plot_window._created = False
-            logger.info("Graph added.")
-            logger.debug(f"Graph: {plot_window}.")
+            self.logger.info("Graph added.")
+            self.logger.debug(f"Graph: {plot_window}.")
         else:
             plot_window = self.ui_plot_windows[plot_name]
 
@@ -337,7 +336,7 @@ class PlotsManager(AbstractPlotsManager):
             return
 
         for plot_name, plot_window in self.ui_plot_windows.items():
-            logger.info(f"Plotting {plot_window}.")
+            self.logger.info(f"Plotting {plot_window}.")
             if not plot_window.visible:
                 # If the window is not visible
                 continue
@@ -391,10 +390,10 @@ class PlotsManager(AbstractPlotsManager):
                     # color=self.region_colors[plot_line.region],
                     **plot_line.kwargs,
                 )
-                logger.debug(
+                self.logger.debug(
                     f"Plotting {plot_line.region} {plot_line.attribute}."
                 )
-                logger.debug(f"Setting: \n x: {x} \n y: {y}.")
+                self.logger.debug(f"Setting: \n x: {x} \n y: {y}.")
 
                 ax.legend()
 

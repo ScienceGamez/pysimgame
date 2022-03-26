@@ -3,23 +3,19 @@
 Check using the version if the file must be updated.
 """
 import json
+import logging
 import os
 import shutil
 from typing import Any, Dict
 
 import pysimgame
-from pysimgame.utils import recursive_dict_missing_values
-from pysimgame.utils.logging import logger
 
-from .directories import (
-    DEFAULT_THEMES_DIR,
-    SETTINGS_DIR,
-    THEMES_DIR,
-)
-
+from .directories import DEFAULT_THEMES_DIR, SETTINGS_DIR, THEMES_DIR
+from .misc import recursive_dict_missing_values
 
 # Check the settings exist or copy them
 
+_logger = logging.getLogger("pysimgame_settings")
 if not os.path.isdir(SETTINGS_DIR):
     os.mkdir(SETTINGS_DIR)
 
@@ -32,7 +28,7 @@ DEFAULT_SETTINGS_FILE = os.path.join(
     *pysimgame.__path__, "utils", "pysimgame_settings.json"
 )
 
-logger.debug(f"PYSDGAME SETTING FILE: {DEFAULT_SETTINGS_FILE}")
+_logger.debug(f"PYSDGAME SETTING FILE: {DEFAULT_SETTINGS_FILE}")
 
 
 if not os.path.isfile(SETTINGS_FILE):
@@ -45,7 +41,7 @@ with open(SETTINGS_FILE) as f:
     PYSDGAME_SETTINGS: Dict[str, Any] = json.load(f)
 
 
-logger.debug(f"PYSDGAME SETTING : {PYSDGAME_SETTINGS}")
+_logger.debug(f"PYSDGAME SETTING : {PYSDGAME_SETTINGS}")
 
 
 def save_pysimgame_settings():

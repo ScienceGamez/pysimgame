@@ -1,4 +1,5 @@
 """Tools to create a menu dynamically from a json/dict input."""
+import logging
 import os
 from enum import IntEnum, auto
 from typing import Any, Dict, Union
@@ -16,7 +17,6 @@ from pygame_gui.elements.ui_button import UIButton
 from pygame_gui.elements.ui_horizontal_slider import UIHorizontalSlider
 from pygame_gui.elements.ui_label import UILabel
 from pygame_gui.windows import UIFileDialog
-from pysimgame.utils.logging import logger
 
 
 class UIColumnContainer(UIScrollingContainer):
@@ -375,7 +375,7 @@ class UISettingsMenu(UIContainer):
                 try:
                     self.add_setting(key, value)
                 except NotImplementedError as err:
-                    logger.exception(err)
+                    logging.getLogger(__name__).exception(err)
             # Allow for pointing to original settings
             self._settings_json = settings
 
@@ -537,7 +537,7 @@ class UISettingsMenu(UIContainer):
 
     def change_setting(self, key: str, value: Any):
         self._settings_json[key] = value
-        logger.info(self.get_settings())
+        logging.getLogger(__name__).info(self.get_settings())
 
     def get_settings(self) -> Dict[str, Any]:
         return self._settings_json

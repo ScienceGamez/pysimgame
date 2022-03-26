@@ -17,7 +17,6 @@ from pysimgame.statistics import StatisticsDisplayManager
 from pysimgame.utils import GameComponentManager
 from pysimgame.utils.directories import THEMES_DIR
 from pysimgame.utils.dynamic_menu import UISettingsMenu
-from pysimgame.utils.logging import logger
 
 if TYPE_CHECKING:
     from pysimgame.game_manager import GameManager
@@ -50,7 +49,7 @@ class MenuOverlayManager(GameComponentManager):
         game_menu_theme_path = Path(
             THEMES_DIR, PYSDGAME_SETTINGS["Themes"]["Game Menu"]
         )
-        logger.debug(f"Theme for Menu: {game_menu_theme_path}")
+        self.logger.debug(f"Theme for Menu: {game_menu_theme_path}")
         self.UI_MANAGER = UIManager(
             screen_resolution,
             theme_path=game_menu_theme_path,
@@ -112,7 +111,7 @@ class MenuOverlayManager(GameComponentManager):
 
         if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_object_id == "#help_button":
-                logger.error("no help lol")
+                self.logger.error("no help lol")
                 handled = True
             elif event.ui_object_id == "#open_menu_button":
                 # Will open the menu
