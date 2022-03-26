@@ -519,6 +519,7 @@ class GameManager(GameComponentManager):
         match event.text:
             case " ":
                 self.logger.debug(f"Found Space")
+                self.post(pysimgame.events.TogglePaused)
 
                 self.change_model_pause_state()
                 return True

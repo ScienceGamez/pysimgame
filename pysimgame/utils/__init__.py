@@ -135,6 +135,23 @@ class GameComponentManager(ABC):
         """
         return False
 
+    def post(self, event: pygame.event.Event | pygame.event.Event.type):
+        """Post an event to the pygame event queue.
+
+        Also logs whether the event was correclty send.
+
+        :param event: Either a pygame event, or an event type.
+            If an event type is given, this will create an empyt event.
+        """
+        if not isinstance(event, pygame.event.Event):
+            # Produce event from type
+            self.logger.debug(f"Creating an event from event type {event}.")
+            event = pygame.event.Event(event)
+        self.logger.debug(f"Posting {event}.")
+        if not pygame.event.post(event):
+            # Unsucessful event post
+            self.logger.error(f"{event} was not sent to pygame event queue.")
+
     def save(self, save_dir: pathlib.Path):
         """Save component content when the users saves game.
 
