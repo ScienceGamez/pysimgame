@@ -1,17 +1,28 @@
-Future ideas and Improvements.
+Future ideas and Improvements
+=============================
 
 
 Multiplayer
+-----------
 
 Different modes:
 Coop: both players can play on the same model
 Versus: player play different regions of the model and play against the other
 
 Plot with other tools
+---------------------
+
+We want to be able to provide a simple api that connects plot modding
+API in pysimgame and external plotting library.
 
 Achievement system
+------------------
 
-Modding:
+Include the possibility to set achievements from a modding file, with
+easy rules to write achievements.
+
+More Modding:
+-------------
 * Game Scenario
 * Events (hard coded or random)
 * model modifications
@@ -19,6 +30,7 @@ Modding:
 
 
 Games
+-----
 * Fighting covid
 * Learning of Neural network or ML algos
 
@@ -26,6 +38,7 @@ Games
 
 
 Technical improvements:
+-----------------------
 
 UIHorizontalSlider should send moved event only at the end of the movement.
 

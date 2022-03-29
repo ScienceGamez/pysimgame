@@ -19,3 +19,15 @@ different difficulty level.
 * Modify/create Game components managers
 * Improve PySimGame
 * ...
+
+
+If you are intersted in modding, please check the dedicated
+explanations, tutorials and rules.
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Modding help:
+
+   managers
+   coding_guidlines

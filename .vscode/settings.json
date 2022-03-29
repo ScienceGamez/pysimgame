@@ -1,4 +1,10 @@
 {
     "restructuredtext.sphinxBuildPath": "docs/source",
-    "restructuredtext.confPath": "docs\\source\\conf.py"
+    "restructuredtext.confPath": "docs\\source\\conf.py",
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "-l",
+        "79"
+    ]
 }
