@@ -624,6 +624,9 @@ class ModelManager(GameComponentManager):
     def process_events(self, event: pygame.event.Event) -> bool:
         """Listen the events for this manager."""
         match event:
+            case pygame.event.EventType(type=pygame.QUIT):
+                # Will stop the model thread
+                self._paused = True
 
             case pygame.event.EventType(type=pysimgame.ActionUsed):
                 self.logger.debug(f"Received action {event}")

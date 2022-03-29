@@ -124,7 +124,7 @@ class GameComponentManager(ABC):
         :param event: Either a pygame event, or an event type.
             If an event type is given, this will create an empyt event.
         """
-        if not isinstance(event, pygame.event.Event):
+        if not isinstance(event, pygame.event.EventType):
             # Produce event from type
             self.logger.debug(f"Creating an event from event type {event}.")
             event = pygame.event.Event(event)

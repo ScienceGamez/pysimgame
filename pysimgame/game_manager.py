@@ -465,19 +465,24 @@ class GameManager(GameComponentManager):
         self.logger.debug(f"Processing {event}")
         self.UI_MANAGER.process_events(event)
         match event:
-            case EventType(type=pygame.QUIT) | EventType(
-                type=pygame.KEYDOWN, key=pygame.K_ESCAPE
-            ):
-                self.MODEL_MANAGER.pause()
+            case EventType(type=pygame.QUIT):
+                self._managers_process_event(event)
                 pygame.quit()
                 sys.exit()
             case EventType(type=pygame.TEXTINPUT):
                 if self._process_textinput_event(event):
                     # Consumed event
                     return
-            case EventType(type=pysimgame.events.TogglePaused):
-                self.change_model_pause_state()
+            case EventType(type=pygame.KEYDOWN):
+                # NOTE: Only handle events that are not already handled
+                # by pygame.TEXTINPUT events
+                if self._process_keydown_event(event):
+                    # Consumed event
+                    return
 
+        self._managers_process_event(event)
+
+    def _managers_process_event(self, event):
         for manager in self.MANAGERS.values():
             if manager.process_events(event):
                 # Consumed event are blocked for other managers
@@ -516,6 +521,7 @@ class GameManager(GameComponentManager):
         The event must be a pygame.TEXTINPUT event.
         Convert them into pysimgame events.
         """
+        self.logger.setLevel(logging.DEBUG)
         self.logger.debug(f"Processing TextInput.text: {event.text}.")
         match event.text:
             case " ":
@@ -524,6 +530,16 @@ class GameManager(GameComponentManager):
 
                 self.change_model_pause_state()
                 return True
+
+    def _process_keydown_event(self, event) -> bool:
+        """Process key down events.
+
+        Should only process events that are not already processed in
+        :py:meth:`_process_textinput_event` .
+        """
+        match event.key:
+            case pygame.K_ESCAPE:
+                self.post(pygame.QUIT)
 
     def draw(self, time_delta: float):
         """Draw the game components on the main display.
