@@ -11,6 +11,8 @@ play,
 create,
 and mod simulation games.
 
+The code is available on `github <https://github.com/ScienceGamez/pysimgame>`_
+
 
 .. toctree::
    :maxdepth: 2
