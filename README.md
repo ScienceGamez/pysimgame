@@ -1,7 +1,7 @@
 # PySimGame
 
+[![Documentation Status](https://readthedocs.org/projects/pysimgame/badge/?version=latest)](https://pysimgame.readthedocs.io/en/latest/?badge=latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
 <a href="http://www.wtfpl.net/"><img
        src="http://www.wtfpl.net/wp-content/uploads/2012/12/wtfpl-badge-4.png"
        width="80" height="15" alt="WTFPL" /></a>
@@ -12,6 +12,8 @@ with simulation models.
 
 It has been developped for running pysd models, but the plan is
 to make it compatible with other simulation packages.
+
+A full documentation is available on [read the docs](https://readthedocs.org/projects/pysimgame/)
 
 ## Current developpement
 The package is still under developpement so nothing is guaranted
