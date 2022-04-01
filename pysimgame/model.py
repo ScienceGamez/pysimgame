@@ -26,10 +26,12 @@ if TYPE_CHECKING:
     import pysd
 
     from pysimgame.types import ExportImportMethod
+    from pysimgame.ml.types import TestVariables, TrainVariables
 
     from .game_manager import GameManager
     from .plotting.manager import PlotsManager
-    from .types import POLICY_DICT, ModelMethod, ModelType, RegionName
+    from .types import POLICY_DICT, ModelMethod, RegionName
+    from .ml.manager import MLVarMngr
 
 
 POLICY_PREFIX = "policy_"
@@ -40,7 +42,65 @@ POLICY_PREFIX = "policy_"
 # example name: policy_policyname_func_to_replace
 
 
-class ModelManager(GameComponentManager):
+class ModelType:
+    """Proxy for models.
+
+    Note that you need to implement one of this in your ModelManager.
+
+    Getting Attributes.
+    pysimgame will try to call the attributes of your model using
+    :py:func:`getattr` in the following way ::
+
+        value = getattr(model_type, '{attr_name}')
+
+    which means that for the valid attributes the current value for
+    that attribute should be returned.
+    """
+
+    ...
+
+
+class AbstractModelManager(GameComponentManager):
+    """An abstract model manager.
+
+    Provide the minimal API for a model to work.
+
+    A Model in pysimgame is actually composed of one or more regions
+    running the same model. This design helps simulating models in
+    parallel for optimization, but also allows to generate interaction
+    between models, if you want to run simulations with several
+    entities that behave the same and have interaction rules.
+
+    In pysdgame, each region correspond to one entity.
+    You can run only one region if your model cannot be representated
+    by many.
+
+    Each region model is represented by a
+
+    :param models: A dictionary mapping region names
+    :param model_lock: A lock for the model. This can be aquired by
+        other manager that want to ensure no step can happen while
+        they hold the lock.
+    """
+
+    models: dict[RegionName, ModelType]
+    model_lock: Lock
+
+    def accept_ml_vars_mngr(
+        self, ml_manager: MLVarMngr
+    ) -> tuple[TrainVariables, TestVariables]:
+        """Define the behaviour when ml_manager is listening to this.
+
+        If you don't want your model to be compatible with ML manager,
+        don't implement this method, otherwise override it so that it
+        return a tuple containing the variable names for x and y.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} cannot be used with ML variables."
+        )
+
+
+class ModelManager(AbstractModelManager):
     """Model used to manage the pysd model-s in the simulation.
 
     Works like a dictionary for the different regions, mapping
