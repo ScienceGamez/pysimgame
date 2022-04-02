@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Callable, Tuple
 import pygame
 from pygame_gui.ui_manager import UIManager
 
+import pysimgame
+
 from .logging import logging, register_logger
 
 if TYPE_CHECKING:

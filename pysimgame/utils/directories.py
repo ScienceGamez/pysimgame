@@ -30,6 +30,7 @@ BACKGROUND_DIR_NAME = "backgrounds"
 ORIGINAL_BACKGROUND_FILESTEM = "orginal"
 GAME_SETTINGS_FILENAME = "settings.json"
 
+FORBIDDEN_GAME_NAMES = ["settings", "themes"]
 
 # Creates the pysimgame dir if not created
 if not os.path.isdir(PYSDGAME_DIR):

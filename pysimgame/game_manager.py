@@ -23,6 +23,7 @@ from pygame_gui.ui_manager import UIManager
 import pysimgame
 from pysimgame.actions.actions import ActionsManager
 from pysimgame.actions.gui import ActionsGUIManager
+from pysimgame.game import Game
 from pysimgame.links.manager import LinksManager
 from pysimgame.speed import SpeedManager
 from pysimgame.statistics import StatisticsDisplayManager
@@ -66,107 +67,6 @@ def get_game_manager() -> GameManager:
 
 def get_model_manager() -> ModelManager:
     return get_game_manager().MODEL_MANAGER
-
-
-class Game:
-    """Helper class representing a game type from pysd.
-
-    Holds meta information on a game.
-    Games all have a model they are based on and a set of settings to
-    define how they should be played.
-    """
-
-    NAME: str
-    GAME_DIR: pathlib.Path
-    REGIONS_FILE: pathlib.Path
-    INITIAL_CONDITIONS_FILE: pathlib.Path
-    PYSD_MODEL_FILE: pathlib.Path
-    SETTINGS: Dict[str, Any]
-
-    REGIONS_DICT: RegionsDict
-
-    def __new__(cls, name: str | Game, *args, **kwargs):
-        if isinstance(name, cls):
-            # Return the game if a game object was given
-            return name
-        else:
-            return object.__new__(cls)
-
-    def __init__(self, name: str | Game, create: bool = False) -> None:
-        self.logger = logging.getLogger(f"Game.{name}")
-        self.NAME = name
-        self.GAME_DIR = pathlib.Path(PYSDGAME_DIR, name)
-        match self.GAME_DIR.exists(), create:
-            case False, True:  # Game creation
-                self.GAME_DIR.mkdir()
-            case False, False:  # Reading a non existing game
-                raise RuntimeError(f"Game '{name}' cannot be found.")
-        self.REGIONS_FILE = pathlib.Path(self.GAME_DIR, REGIONS_FILE_NAME)
-        self.PYSD_MODEL_FILE = pathlib.Path(self.GAME_DIR, MODEL_FILENAME)
-        self.INITIAL_CONDITIONS_FILE = pathlib.Path(
-            self.GAME_DIR, INITIAL_CONDITIONS_FILENAME
-        )
-        self._SETTINGS_FILE = pathlib.Path(
-            self.GAME_DIR, GAME_SETTINGS_FILENAME
-        )
-
-    @cached_property
-    def SINGLE_REGION(self) -> bool:
-        """Whether the game has only one region."""
-        return len(self.REGIONS_DICT) <= 1
-
-    @cached_property
-    def REGIONS_DICT(self) -> RegionsDict:
-        """Load the dictionary of the regions for that game."""
-        with open(self.REGIONS_FILE, "r") as f:
-            dic = json.load(f)
-        self.logger.info("Region file loaded.")
-        self.logger.debug(f"Region file content: {dic}.")
-
-        return (
-            {  # Load regions from what is in the file
-                region_dict["name"]: RegionComponent.from_dict(region_dict)
-                for region_dict in dic.values()
-            }
-            if len(dic) != 0
-            # Load a single region if they are not in the file
-            else {"": SingleRegionComponent()}
-        )
-
-    @cached_property
-    def SETTINGS(self) -> Dict[str, Any]:
-        """Load the settings of the game."""
-
-        with open(self._SETTINGS_FILE, "r") as f:
-            settings = json.load(f)
-        # Check everything necessary is in settings, else add
-        if "Themes" not in settings:
-            settings["Themes"] = {}
-        self.logger.info("Game Settings loaded.")
-        self.logger.debug(f"Game Settings content: {settings}.")
-        return settings
-
-    def save_settings(self) -> None:
-        """Save the game settings.
-
-        Settings can be modified directly by calling Game.SETTINGS .
-        The settings will only be saved using this method.
-        """
-
-        with open(self._SETTINGS_FILE, "w") as f:
-            json.dump(f, self.SETTINGS)
-        self.logger.info("Game Settings saved.")
-        self.logger.debug(f"Game Settings content: {self.SETTINGS}.")
-
-    def load_model(self) -> ModelType:
-        """Return a model object for doc purposes.
-
-        ..note:: currently works only with pysd models.
-        """
-        import pysd
-
-        model = pysd.load(self.PYSD_MODEL_FILE)
-        return model.components
 
 
 class GameManager(GameComponentManager):

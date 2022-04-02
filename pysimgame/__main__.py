@@ -1,11 +1,13 @@
 """Main entry script.
 
-Capabilities:
-    * start an existing game
-    * initialize a new game
+
 """
 import argparse
 
-parser = argparse.ArgumentParser(prog="pysimgame")
-parser.add_argument("--foo", help="foo help")
-args = parser.parse_args()
+import pysimgame.arg_parse
+
+
+args = pysimgame.arg_parse.parser.parse_args()
+
+
+pysimgame.arg_parse.parse_args(args)
