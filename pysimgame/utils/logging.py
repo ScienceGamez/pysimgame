@@ -73,7 +73,7 @@ class _LOGGING_CONFIG(dict):
     def load(self):
         """Load the config form the file."""
         LOGGING_FILE = Path(PYSDGAME_SETTINGS["logging_config"])
-        print(f"Loading config {LOGGING_FILE} .")
+        # print(f"Loading config {LOGGING_FILE} .")
         with LOGGING_FILE.open("r") as f:
             LOGGING_CONFIG = json.load(f)
 
