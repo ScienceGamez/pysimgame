@@ -22,8 +22,10 @@ SETTINGS_DIR = os.path.join(PYSDGAME_DIR, "settings")
 TEST_DIR = pathlib.Path(*pysimgame.__path__, "..", "tests")
 EXAMPLES_DIR = pathlib.Path(*pysimgame.__path__, "..", "examples")
 
+SCIENCEGAMEZ_URL = "https://github.com/ScienceGamez/"
 REPOSITORY_URL = "https://github.com/ScienceGamez/"
-
+PYSIMGAME_GITHUB_URL = SCIENCEGAMEZ_URL + "pysimgame"
+READTHEDOCS_URL = "https://pysimgame.readthedocs.io/en/latest/"
 # DESKTOP_DIR = os.path.join(os.path.join(os.environ["USERPROFILE"]), "Desktop")
 
 REGIONS_FILE_NAME = "regions.json"

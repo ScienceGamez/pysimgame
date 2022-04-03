@@ -1,6 +1,7 @@
 """Helper for Game definition from pysimgame."""
 from __future__ import annotations
 from functools import cached_property
+from numpy import True_
 
 from packaging.version import Version
 import git
@@ -123,13 +124,25 @@ class Game:
         else:
             # Ensure the path is as Path and not str if given by user
             self.GAME_DIR = Path(game_dir, name)
-        match self.GAME_DIR.exists(), create:
-            case True, True:  # Game already exists
+        match self.GAME_DIR.exists(), create, remote:
+            case True, True, rem:  # Game already exists
                 raise GameAlreadyExistError(self.GAME_DIR)
-            case False, True:  # Game creation
+            case False, True, "":  # Game creation local
+                self.logger.info(f"Creating local game at {self.GAME_DIR}")
                 self.GAME_DIR.mkdir()
-            case False, False:  # Reading a non existing game
+            case False, True, rem:  # Game creation from repo
+                self.logger.info(
+                    f"Creating game at {self.GAME_DIR} from {remote}"
+                )
+                self.GAME_DIR.mkdir()
+                self.download_game(remote)
+            case False, False, "":  # Reading a non existing game
                 raise GameNotFoundError(self.GAME_DIR)
+            case True, False, "":  # The game is read
+                self.logger.info(f"Reading game at {self.GAME_DIR}")
+            case _:
+                print(f"{self.GAME_DIR.exists()=}, {create=}, {remote=}")
+                raise ValueError("Unexpected arguments combination.")
 
         # Set some file paths
         self.REGIONS_FILE = Path(self.GAME_DIR, REGIONS_FILE_NAME)
@@ -139,36 +152,75 @@ class Game:
         )
         self._SETTINGS_FILE = Path(self.GAME_DIR, GAME_SETTINGS_FILENAME)
 
-        if remote:
-            self.download_game(self, remote)
+    def add_readme(self, exist_ok: bool = False):
+        """Add a default readme to the game dir.
+
+        :arg exist_ok: If the readme already exists,
+            the function succeeds if *exist_ok*
+            is true ,
+            otherwise :exc:`FileExistsError` is raised.
+        """
+        readme = "\n".join(
+            (
+                f"# {self.NAME}",
+                "",
+                f"This game was created using "
+                f"[pysimgame]({REPOSITORY_URL + 'pysimgame'}).",
+            )
+        )
+        readme_file = Path(self.GAME_DIR, "README.md")
+        if readme_file.exists():
+            if exist_ok:
+                return
+            else:
+                raise FileExistsError(readme_file)
+
+        with open(readme_file, "w") as f:
+            f.write(readme)
 
     def download_game(self, remote_url: str):
         """Download the game."""
-        if "/" not in remote:
-            remote = REPOSITORY_URL + remote
+        if "/" not in remote_url:
+            remote_url = REPOSITORY_URL + remote_url
         # Download from the remote git repo
         git.Repo.clone_from(remote_url, self.GAME_DIR)
         git.Repo(self.GAME_DIR)
 
     def publish_game(self, remote_url: str):
         """Upload the game to a remote repository."""
-        repo = git.Repo.init(self.GAME_DIR)
+        try:
+            repo = git.Repo(self.GAME_DIR)
+        except:
+            repo = git.Repo.init(self.GAME_DIR)
         try:
             remote = repo.remote("pysimgame")
+            remote.set_url(remote_url)
         except ValueError as ve:
-            # The remote does not exist
+            # The remote does not exist in folder yet
             remote = repo.create_remote("pysimgame", url=remote_url)
+        self.logger.debug(f"{remote=} {remote.exists()}")
+
+        remote.fetch()
+
         # repo.git.checkout("-b", "pysimgame")
-        repo.index.add(".")
-        repo.index.commit("Uploaded game")
-        remote.push(["--set-upstream", "origin", "pysimgame"])
+        self.add_readme(exist_ok=True)
+        repo.git.add(".")
+        repo.git.commit("-m", "[by pysimgame] Publishing game")
+        repo.git.branch("-M", "master")
+
+        repo.git.push(*["--set-upstream", "pysimgame", "master"])
+        # try:
+        #     repo.git.push(["--set-upstream", "pysimgame", "master"])
+        # except git.GitCommandError as gce:
+        #     print("Error in git push command:", gce.stderr)
 
     def push_game(self):
         """Push the updates to the remote."""
-        repo = git.Repo.init(self.GAME_DIR)
+        repo = git.Repo(self.GAME_DIR)
         # repo.git.checkout("-b", "pysimgame")
-        repo.index.add(".")
-        repo.index.commit("Update")
+        self.add_readme(exist_ok=True)
+        repo.git.add(".")
+        repo.git.commit("-m", "[by pysimgame] Updated game")
         repo.remote("pysimgame").push()
 
     @property

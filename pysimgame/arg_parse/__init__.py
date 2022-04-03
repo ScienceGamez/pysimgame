@@ -113,13 +113,15 @@ def _parse_no_game(args):
 
 def read_parsed_args(args):
     """Read the args parsed by the parser."""
-    if args.clone and not args.game:
-        # Guess the name of the game
-        clone = args.clone[0]
-        args.game = guess_game_name_from_clone_arg(clone)
-        # Ensure the game will be created
+    if args.clone:
         if not args.init:
+            # Cloning is the same as init
             args.init = True
+        if not args.game:
+            # Guess the name of the game
+            clone = args.clone[0]
+            args.game = guess_game_name_from_clone_arg(clone)
+            # Ensure the game will be created
 
     if not args.game:
         _parse_no_game(args)
@@ -131,7 +133,7 @@ def read_parsed_args(args):
             args.game,
             create=args.init,
             game_dir=game_dir,
-            remote=args.clone,
+            remote="" if not args.clone else args.clone[0],
         )
     except GameNotFoundError or GameAlreadyExistError as gnf_err:
         print(gnf_err.msg)
@@ -160,4 +162,13 @@ def read_parsed_args(args):
         game.push_game()
 
     if args.publish:
-        game.publish_game(args.publish[0])
+        if input(
+            f"You are going to publish {game} from {game.GAME_DIR} "
+            f"to {args.publish[0]}\n"
+            "Do you want to continue ? [Y/n] "
+        ) in ["Y", "y"]:
+            game.publish_game(args.publish[0])
+            print(f"{game} published.")
+        else:
+            print("Abort.")
+            sys.exit(0)
