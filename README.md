@@ -13,7 +13,7 @@ with simulation models.
 It has been developped for running pysd models, but the plan is
 to make it compatible with other simulation packages.
 
-A full documentation is available on [read the docs](https://readthedocs.org/projects/pysimgame/)
+A full documentation is available on [read the docs](https://pysimgame.readthedocs.io/en/latest/)
 
 ## Current developpement
 The package is still under developpement so nothing is guaranted
