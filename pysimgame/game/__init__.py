@@ -2,6 +2,9 @@
 from __future__ import annotations
 from functools import cached_property
 
+from packaging.version import Version
+import git
+
 import json
 import logging
 from pathlib import Path
@@ -16,17 +19,30 @@ from pysimgame.utils.directories import (
     MODEL_FILENAME,
     PYSDGAME_DIR,
     REGIONS_FILE_NAME,
+    REPOSITORY_URL,
 )
 
 if TYPE_CHECKING:
     from pysimgame.types import RegionsDict, ModelType
 
 
-def list_available_games() -> list[Game]:
-    """Return the game availables."""
-    subdirs = PYSDGAME_DIR.glob("*/")
+def guess_game_name_from_clone_arg(arg: str) -> str:
+    """Guess the name of the game from the --clone argument."""
+    if "/" in arg:
+        # If url, probably the last value is used as game name
+        return arg.split("/")[-1]
+    else:
+        arg
+
+
+def list_available_games(games_dir: Path = PYSDGAME_DIR) -> list[Game]:
+    """Return the game availables in the specified directory.
+
+    :arg games_dir: The directory in which the games are to be searched.
+    """
+    subdirs = games_dir.glob("*/")
     return [
-        Game(game_dir.stem)
+        Game(game_dir.stem, game_dir=games_dir)
         for game_dir in subdirs
         if game_dir.is_dir() and game_dir.stem not in FORBIDDEN_GAME_NAMES
     ]
@@ -35,12 +51,22 @@ def list_available_games() -> list[Game]:
 class GameNotFoundError(Exception):
     """A game was not found."""
 
-    game: str
     game_dir: Path
     msg: str
 
-    def __init__(self, game: str, game_dir: Path) -> None:
-        self.msg = f"Game '{game}' cannot be found in {game_dir}"
+    def __init__(self, game_dir: Path) -> None:
+        self.msg = f"Game '{game_dir.stem}' cannot be found as path {game_dir}"
+        super().__init__(self.msg)
+
+
+class GameAlreadyExistError(Exception):
+    """A game already exists."""
+
+    game_dir: Path
+    msg: str
+
+    def __init__(self, game_dir: Path) -> None:
+        self.msg = f"Game '{game_dir.stem}' already exists at path {game_dir}"
         super().__init__(self.msg)
 
 
@@ -51,14 +77,19 @@ class Game:
     Games all have a model they are based on and a set of settings to
     define how they should be played.
 
+    A game will be found at `game.GAME_DIR = Path(game_dir, name)`
+
     :arg name: The name of the game
     :arg create: Whether the game should be created
     :arg game_dir: The directory where the game should be created.
         If not specified, pysimgame will choose a default.
+    :arg remote: If combined with create=True, this will create
+        the game from an online repository.
     """
 
     NAME: str
     GAME_DIR: Path
+    VERSION: str
     REGIONS_FILE: Path
     INITIAL_CONDITIONS_FILE: Path
     PYSD_MODEL_FILE: Path
@@ -80,24 +111,77 @@ class Game:
         name: str | Game,
         create: bool = False,
         game_dir: Path = None,
+        remote: str = "",
     ) -> None:
+
         self.logger = logging.getLogger(f"Game.{name}")
         self._allow_delete = False
         self.NAME = name
-        self.GAME_DIR = game_dir or Path(PYSDGAME_DIR, name)
-        # Ensure the path is as Path and not str if given by user
-        self.GAME_DIR = Path(self.GAME_DIR)
+        if game_dir is None:
+            # Default path
+            self.GAME_DIR = Path(PYSDGAME_DIR, name)
+        else:
+            # Ensure the path is as Path and not str if given by user
+            self.GAME_DIR = Path(game_dir, name)
         match self.GAME_DIR.exists(), create:
+            case True, True:  # Game already exists
+                raise GameAlreadyExistError(self.GAME_DIR)
             case False, True:  # Game creation
                 self.GAME_DIR.mkdir()
             case False, False:  # Reading a non existing game
-                raise GameNotFoundError(self.NAME, self.GAME_DIR)
+                raise GameNotFoundError(self.GAME_DIR)
+
+        # Set some file paths
         self.REGIONS_FILE = Path(self.GAME_DIR, REGIONS_FILE_NAME)
         self.PYSD_MODEL_FILE = Path(self.GAME_DIR, MODEL_FILENAME)
         self.INITIAL_CONDITIONS_FILE = Path(
             self.GAME_DIR, INITIAL_CONDITIONS_FILENAME
         )
         self._SETTINGS_FILE = Path(self.GAME_DIR, GAME_SETTINGS_FILENAME)
+
+        if remote:
+            self.download_game(self, remote)
+
+    def download_game(self, remote_url: str):
+        """Download the game."""
+        if "/" not in remote:
+            remote = REPOSITORY_URL + remote
+        # Download from the remote git repo
+        git.Repo.clone_from(remote_url, self.GAME_DIR)
+        git.Repo(self.GAME_DIR)
+
+    def publish_game(self, remote_url: str):
+        """Upload the game to a remote repository."""
+        repo = git.Repo.init(self.GAME_DIR)
+        try:
+            remote = repo.remote("pysimgame")
+        except ValueError as ve:
+            # The remote does not exist
+            remote = repo.create_remote("pysimgame", url=remote_url)
+        # repo.git.checkout("-b", "pysimgame")
+        repo.index.add(".")
+        repo.index.commit("Uploaded game")
+        remote.push(["--set-upstream", "origin", "pysimgame"])
+
+    def push_game(self):
+        """Push the updates to the remote."""
+        repo = git.Repo.init(self.GAME_DIR)
+        # repo.git.checkout("-b", "pysimgame")
+        repo.index.add(".")
+        repo.index.commit("Update")
+        repo.remote("pysimgame").push()
+
+    @property
+    def VERSION(self) -> Version:
+        version_file = Path(self.GAME_DIR, ".version")
+        if version_file.exists():
+            version = Version(version_file.read_text())
+        else:
+            version = Version("0.0.0")
+            self.logger.info(f"No version found, using default {version}")
+            with open(version_file, "w") as f:
+                f.write(str(version))
+        return version
 
     @cached_property
     def SINGLE_REGION(self) -> bool:

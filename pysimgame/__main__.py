@@ -7,7 +7,10 @@ import argparse
 import pysimgame.arg_parse
 
 
-args = pysimgame.arg_parse.parser.parse_args()
+parser = pysimgame.arg_parse.create_parser()
+args = parser.parse_args()
 
+if not args.game and not args.list:
+    parser.print_usage()
 
-pysimgame.arg_parse.parse_args(args)
+pysimgame.arg_parse.read_parsed_args(args)

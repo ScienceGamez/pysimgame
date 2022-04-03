@@ -6,80 +6,139 @@ Capabilities:
     * manage existant games
 """
 import argparse
+from pathlib import Path
 import sys
 
-from pysimgame.game import Game, GameNotFoundError, list_available_games
+import git
+import pysimgame
+
+from pysimgame.game import (
+    Game,
+    GameAlreadyExistError,
+    GameNotFoundError,
+    guess_game_name_from_clone_arg,
+    list_available_games,
+)
+from pysimgame.utils.directories import REPOSITORY_URL
 
 
-parser = argparse.ArgumentParser(prog="pysimgame")
-parser.add_argument(
-    "--list",
-    action="store_true",
-    help="List the current available games.",
-)
-parser.add_argument(
-    "game",
-    nargs="?",
-    type=str,
-    default="",
-    help="Name of the game to start",
-)
-parser.add_argument(
-    "--init",
-    action="store_true",
-    help="If specified, this will initialize the game",
-)
-parser.add_argument(
-    "--delete",
-    action="store_true",
-    help="Delete the game",
-)
-parser.add_argument(
-    "--dir",
-    nargs="?",
-    type=str,
-    default="",
-    help="The directory where the game is located.",
-)
-parser.add_argument(
-    "--version",
-    action="store_true",
-    help="Return the version of the selected game.",
-)
+def create_parser() -> argparse.ArgumentParser:
 
-parser.add_argument(
-    "--log",
-    "--verbose",
-    nargs="?",
-    type=int,
-    default=20,
-    help=(
-        "The level of logging to use by default "
-        "(10 = DEBUG, 40=ONLY_ERROR_)."
-        "More choices available at "
-        "https://docs.python.org/3/library/logging.html#logging-levels. "
-        "Using 20 by default."
-    ),
-    metavar="LEVEL",
-)
+    parser = argparse.ArgumentParser(prog="pysimgame")
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List the current available games.",
+    )
+    parser.add_argument(
+        "game",
+        nargs="?",
+        type=str,
+        default="",
+        help="Name of the game to start",
+    )
+    parser.add_argument(
+        "--init",
+        action="store_true",
+        help="If specified, this will initialize the game",
+    )
+    parser.add_argument(
+        "--delete",
+        action="store_true",
+        help="Delete the game",
+    )
+    parser.add_argument(
+        "--clone",
+        nargs=1,
+        type=str,
+        help=(
+            "The game that should be downloaded.\n"
+            "\tIf link will try to download from that link.\n"
+            "\tIf str will try to download from the official repository.\n"
+        ),
+    )
+    parser.add_argument(
+        "--push",
+        action="store_true",
+        help=("Push the game on the registered repository.",),
+    )
+    parser.add_argument(
+        "--publish",
+        nargs=1,
+        type=str,
+        help=("Publish the game on the specified repository.",),
+    )
+    parser.add_argument(
+        "--dir",
+        nargs="?",
+        type=str,
+        default="",
+        help="The directory where the game is located.",
+    )
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Return the version of the selected game.",
+    )
+
+    parser.add_argument(
+        "--log",
+        "--verbose",
+        nargs="?",
+        type=int,
+        default=20,
+        help=(
+            "The level of logging to use by default "
+            "(10 = DEBUG, 40=ONLY_ERROR_)."
+            "More choices available at "
+            "https://docs.python.org/3/library/logging.html#logging-levels. "
+            "Using 20 by default."
+        ),
+        metavar="LEVEL",
+    )
+
+    return parser
 
 
 def _parse_no_game(args):
+    """Special parsing when no game is present."""
     if args.list:
-        for game in list_available_games():
-            print(game)
+        dir_arg = [] if not args.dir else [Path(args.dir)]
+        for game in list_available_games(*dir_arg):
+            print(game, "" if not args.version else game.VERSION)
+
+    elif args.version:
+        print(f"pysimgame={pysimgame.__version__}")
 
 
-def parse_args(args):
+def read_parsed_args(args):
+    """Read the args parsed by the parser."""
+    if args.clone and not args.game:
+        # Guess the name of the game
+        clone = args.clone[0]
+        args.game = guess_game_name_from_clone_arg(clone)
+        # Ensure the game will be created
+        if not args.init:
+            args.init = True
+
     if not args.game:
         _parse_no_game(args)
         sys.exit(0)
 
     try:
-        game = Game(args.game, create=args.init, game_dir=args.dir)
-    except GameNotFoundError as gnf_err:
+        game_dir = args.dir or None
+        game = Game(
+            args.game,
+            create=args.init,
+            game_dir=game_dir,
+            remote=args.clone,
+        )
+    except GameNotFoundError or GameAlreadyExistError as gnf_err:
         print(gnf_err.msg)
         sys.exit(1)
+
+    if args.version:
+        print(game.VERSION)
 
     if args.delete:
 
@@ -95,3 +154,10 @@ def parse_args(args):
 
         else:
             print("Did not delete {asdf} . ")
+
+    if args.push:
+        print("pushing the game")
+        game.push_game()
+
+    if args.publish:
+        game.publish_game(args.publish[0])

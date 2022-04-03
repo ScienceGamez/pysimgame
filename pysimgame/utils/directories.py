@@ -19,6 +19,11 @@ DEFAULT_THEMES_DIR = os.path.join(*pysimgame.__path__, "themes")
 
 SETTINGS_DIR = os.path.join(PYSDGAME_DIR, "settings")
 
+TEST_DIR = pathlib.Path(*pysimgame.__path__, "..", "tests")
+EXAMPLES_DIR = pathlib.Path(*pysimgame.__path__, "..", "examples")
+
+REPOSITORY_URL = "https://github.com/ScienceGamez/"
+
 # DESKTOP_DIR = os.path.join(os.path.join(os.environ["USERPROFILE"]), "Desktop")
 
 REGIONS_FILE_NAME = "regions.json"
@@ -30,7 +35,13 @@ BACKGROUND_DIR_NAME = "backgrounds"
 ORIGINAL_BACKGROUND_FILESTEM = "orginal"
 GAME_SETTINGS_FILENAME = "settings.json"
 
-FORBIDDEN_GAME_NAMES = ["settings", "themes"]
+FORBIDDEN_GAME_NAMES = [
+    "settings",
+    "themes",
+    "__pycache__",
+    ".git",
+    "pysimgame",
+]
 
 # Creates the pysimgame dir if not created
 if not os.path.isdir(PYSDGAME_DIR):
