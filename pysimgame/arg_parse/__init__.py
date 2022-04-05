@@ -20,6 +20,7 @@ from pysimgame.game import (
     list_available_games,
 )
 from pysimgame.utils.directories import REPOSITORY_URL
+from pysimgame.game_manager import GameManager
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -60,13 +61,18 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--push",
         action="store_true",
-        help=("Push the game on the registered repository.",),
+        help=("Push the game on the registered repository."),
     )
     parser.add_argument(
         "--publish",
         nargs=1,
         type=str,
-        help=("Publish the game on the specified repository.",),
+        help=("Publish the game on the specified repository."),
+    )
+    parser.add_argument(
+        "--readme",
+        action="store_true",
+        help=("Generate a readme if it does not exist for the game."),
     )
     parser.add_argument(
         "--dir",
@@ -141,7 +147,11 @@ def read_parsed_args(args):
 
     if args.version:
         print(game.VERSION)
-
+        sys.exit(0)
+    if args.readme:
+        game.add_readme()
+        print(f"Added {Path(game.GAME_DIR, 'README.md')}")
+        sys.exit(0)
     if args.delete:
 
         if (
@@ -153,13 +163,16 @@ def read_parsed_args(args):
         ):
             game._allow_delete = True
             game.delete()
+            sys.exit(0)
 
         else:
             print("Did not delete {asdf} . ")
+            sys.exit(1)
 
     if args.push:
         print("pushing the game")
         game.push_game()
+        sys.exit(0)
 
     if args.publish:
         if input(
@@ -169,6 +182,13 @@ def read_parsed_args(args):
         ) in ["Y", "y"]:
             game.publish_game(args.publish[0])
             print(f"{game} published.")
+            sys.exit(0)
         else:
             print("Abort.")
-            sys.exit(0)
+            sys.exit(1)
+
+    # Still not existed yet, we start the game
+    # TODO: think about how we want to start the game,
+    # New design ? refactor ?
+    GAME_MANAGER = GameManager()
+    GAME_MANAGER.start_new_game(game)
