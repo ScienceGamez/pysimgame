@@ -164,6 +164,16 @@ class Game:
             (
                 f"# {self.NAME}",
                 "",
+                "To install, you need to follow the instructions from"
+                " [pysimgame]"
+                "(https://pysimgame.readthedocs.io/en/latest/installation/index.html#requirements)",
+                "",
+                "Then you can run",
+                "```",
+                f"python -m pysimgame {self.NAME} --clone",
+                "```",
+                f"This will install {self.NAME} game locally.",
+                "",
                 f"This game was created using "
                 f"[pysimgame]({REPOSITORY_URL + 'pysimgame'}).",
             )
