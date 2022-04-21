@@ -17,7 +17,7 @@ from pysimgame.regions_display import RegionComponent
 if TYPE_CHECKING:
     from pysimgame.model import ModelManager
 
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 from pysimgame.utils.dynamic_menu import UIColumnContainer
 
 

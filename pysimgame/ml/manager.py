@@ -8,7 +8,7 @@ import pygame
 
 from pysimgame.events import ModelStepped
 from .types import TestVariables, TrainVariables
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 
 if TYPE_CHECKING:
     from pysimgame.model import AbstractModelManager

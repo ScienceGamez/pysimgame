@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
 )
+from PySide6.QtCore import Signal
 from functools import wraps
 
 
@@ -32,8 +33,10 @@ class PlotsList(QWidget):
 
     buttons: dict[str, PlotButton]
 
+    open_plot: Signal = Signal(Plot)
+
     def __init__(
-        self, plot_list: dict[str, Plot], parent: Optional[QWidget] = None
+        self, plot_list: list[Plot], parent: Optional[QWidget] = None
     ):
         super().__init__(parent)
 
@@ -41,22 +44,27 @@ class PlotsList(QWidget):
 
         self.layout = QVBoxLayout(self)
 
-        for name, plot in plot_list.items():
-            button = PlotButton(plot, name, self)
-            self.buttons[name] = PlotButton
+        for plot in plot_list:
+            button = PlotButton(plot, plot.name, self)
+            self.buttons[plot.name] = PlotButton
 
             self.layout.addWidget(button)
+
+            def emit_plot(checked: bool = False, plot=plot):
+                self.open_plot.emit(plot)
+
+            button.clicked.connect(emit_plot)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     window = PlotsList(
-        {
-            "a": FakePlot("a"),
-            "d": FakePlot("b"),
-            "e": FakePlot("c"),
-        }
+        [
+            FakePlot("a"),
+            FakePlot("b"),
+            FakePlot("c"),
+        ]
     )
     window.show()
     window.resize(440, 300)

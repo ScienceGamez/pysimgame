@@ -5,12 +5,12 @@ import pygame_gui
 from pygame.constants import TEXTINPUT
 from pygame.event import EventType
 from pygame_gui.core import UIContainer
-from pygame_gui.elements import UIButton, UITextBox
+from pygame_gui.elements import UIButton
 from pygame_gui.elements.ui_label import UILabel
 from pygame_gui.ui_manager import UIManager
 
 import pysimgame
-from pysimgame.utils import GameComponentManager, pysimgame_settings
+from pysimgame.utils.abstract_managers import GameComponentManager
 
 
 class SpeedManager(GameComponentManager):

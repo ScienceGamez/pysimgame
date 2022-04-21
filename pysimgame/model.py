@@ -18,7 +18,7 @@ from pysimgame.actions.actions import BaseAction, Budget, Edict, Policy
 from pysimgame.links.manager import BaseLink
 from pysimgame.links.shared_variables import SharedVariables
 from pysimgame.regions_display import RegionComponent
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 
 from .utils.logging import logger_enter_exit
 

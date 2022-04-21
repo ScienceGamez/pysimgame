@@ -39,7 +39,7 @@ from .regions_display import (
     RegionsManager,
     SingleRegionComponent,
 )
-from .utils import GameComponentManager
+from .utils.abstract_managers import GameComponentManager
 from .utils.directories import (
     GAME_SETTINGS_FILENAME,
     INITIAL_CONDITIONS_FILENAME,

@@ -165,4 +165,4 @@ class FakePlot(Plot):
         regions: RegionName | List[RegionName] = None,
         attributes: AttributeName | List[AttributeName] = None,
     ) -> None:
-        self.name = name
+        super().__init__(name)

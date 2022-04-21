@@ -30,7 +30,7 @@ from pygame_matplotlib.backend_pygame import FigureSurface
 from pygame_matplotlib.gui_window import UIPlotWindow
 from pysimgame.model import ModelManager
 from pysimgame.plotting.base import AbstractPlotsManager
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 from pysimgame.utils.strings import beautify_parameter_name
 
 from ..utils.maths import normalize

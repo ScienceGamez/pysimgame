@@ -30,7 +30,7 @@ from typing import (
 import pygame
 import pysimgame
 from pygame.event import Event
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 from pysimgame.utils.logging import register_logger
 
 if TYPE_CHECKING:

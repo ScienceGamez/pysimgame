@@ -11,7 +11,7 @@ import pygame
 import pygame_gui
 from pysimgame.model import ModelManager
 from pysimgame.plotting.plot import Plot
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 
 if TYPE_CHECKING:
     from ..game_manager import GameManager

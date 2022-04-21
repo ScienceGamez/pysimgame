@@ -14,7 +14,7 @@ from pygame.event import Event
 
 from pysimgame import PYSDGAME_SETTINGS
 from pysimgame.statistics import StatisticsDisplayManager
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 from pysimgame.utils.directories import THEMES_DIR
 from pysimgame.utils.dynamic_menu import UISettingsMenu
 

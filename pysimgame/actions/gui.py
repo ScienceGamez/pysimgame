@@ -10,7 +10,7 @@ from pygame.event import Event, EventType, event_name
 from pygame_gui.elements import UIButton, UIHorizontalSlider, UILabel, UIWindow
 from pygame_gui.ui_manager import UIManager
 from pysimgame.actions.actions import ActionsDict, BaseAction, Budget, Policy
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 from pysimgame.utils.directories import THEME_FILENAME, THEMES_DIR
 from pysimgame.utils.dynamic_menu import UIColumnContainer
 

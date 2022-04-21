@@ -4,7 +4,7 @@ from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pysimgame.utils import GameComponentManager
+from pysimgame.utils.abstract_managers import GameComponentManager
 
 if TYPE_CHECKING:
     from pysimgame.model import ModelManager
