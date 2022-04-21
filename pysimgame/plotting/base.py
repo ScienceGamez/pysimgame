@@ -2,14 +2,21 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from importlib.machinery import SourceFileLoader
+import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pygame
+import pygame_gui
+from pysimgame.model import ModelManager
 from pysimgame.plotting.plot import Plot
 from pysimgame.utils import GameComponentManager
 
 if TYPE_CHECKING:
     from ..game_manager import GameManager
+
+_PLOT_MANAGER: AbstractPlotsManager
 
 
 class AbstractPlotsManager(GameComponentManager):
@@ -28,22 +35,68 @@ class AbstractPlotsManager(GameComponentManager):
     1. Make the thread for the draw function.
     """
 
-    pass
+    plots: list[Plot]
 
-    @abstractmethod
-    def add_plot(self, name: str, plot: Plot):
-        """Add a :py:class:`Plot` to the manager."""
-        ...
+    def __init__(self, GAME_MANAGER: GameManager) -> None:
+        super().__init__(GAME_MANAGER)
+        self.plots = []
+        # Register the plot manager being this
+        global _PLOT_MANAGER
+        _PLOT_MANAGER = self
+
+    def connect(self):
+        self._connect_to_model(self.GAME_MANAGER.MODEL_MANAGER)
+
+    def _connect_to_model(self, MODEL_MANAGER: ModelManager):
+        """Connect the plots display to the models."""
+        self.model_outputs = MODEL_MANAGER.outputs
+        self.MODEL_MANAGER = MODEL_MANAGER
+
+        # Create a df containing regions and alements
+        self.df_keys = self.model_outputs.keys().to_frame(index=False)
+
+        # Load the plots
+        plots_dir = Path(self.GAME.GAME_DIR, "plots")
+        if not plots_dir.exists():
+            plots_dir.mkdir()
+        plots_files = list(plots_dir.rglob("*.py"))
+        # Read what is in the files
+        for file in plots_files:
+            SourceFileLoader("", str(file)).load_module()
+
+        self.logger.debug(f"Files: {plots_files}")
+        # Register connected
+        self._connected = True
+
+    def register_plot(self, plot: Plot):
+        """Add a :py:class:`Plot` to the manager.
+
+        The :py:class`Plot`s can be then accessed
+        using `self.plots[name]` .
+        """
+        self.logger.debug(f"Adding {plot = }")
+
+        self.plots.append(plot)
 
     @abstractmethod
     def show_plots_list(self):
-        """Show all the available plots."""
+        """Show all the available plots on the GUI.
+
+        This is triggered when the user presses the plot menu.
+        """
         ...
 
     def process_events(self, event: pygame.event.Event) -> bool:
         """Listen to the events that require drawing a plot."""
-        ...
-        # TODO implement the events
+        match event:
+            case pygame.event.EventType(
+                type=pygame_gui.UI_BUTTON_PRESSED, ui_object_id="#plots_button"
+            ):
+                # The button menu that opens the plot list
+                self.show_plots_list()
+                return True
+
+        return False
 
     @abstractmethod
     def draw(self):

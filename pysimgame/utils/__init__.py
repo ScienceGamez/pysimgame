@@ -6,9 +6,11 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Callable, Tuple
 
 import pygame
+import pygame_gui
 from pygame_gui.ui_manager import UIManager
 
 import pysimgame
+from pysimgame.utils.abstract_managers import AbstractGameManager
 
 from .logging import logging, register_logger
 
@@ -53,14 +55,14 @@ HINT_DISPLAY = _HintDisplay()
 class GameComponentManager(ABC):
     """Abstract class for managing different components of the game."""
 
-    GAME_MANAGER: GameManager
+    GAME_MANAGER: AbstractGameManager
     GAME: Game
     # A logger object for logging purposes
     logger: logging.Logger
     # Optional attribute
     UI_MANAGER: UIManager
 
-    def __init__(self, GAME_MANAGER: GameManager) -> None:
+    def __init__(self, GAME_MANAGER: AbstractGameManager) -> None:
 
         self.GAME_MANAGER = GAME_MANAGER
         self.GAME = GAME_MANAGER.GAME

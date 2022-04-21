@@ -320,3 +320,13 @@ class Game:
 
     def __str__(self) -> str:
         return f"Game {self.NAME}"
+
+
+class FakeGame(Game):
+    """A Fake game to use for test purposes."""
+
+    def __new__(cls):
+        return object.__new__(cls)
+
+    def __init__(self) -> None:
+        self.NAME = "_fake_game"

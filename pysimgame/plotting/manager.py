@@ -117,8 +117,6 @@ class PlotsManager(AbstractPlotsManager):
     _connected: bool = False
     region_colors: Dict[str, Tuple[float, float, float, float]]
 
-    plots: Dict[str, Plot]
-
     _menu_button: UIButton
     _plot_list_buttons: List[UIButton]
 
@@ -167,33 +165,12 @@ class PlotsManager(AbstractPlotsManager):
         self.logger.debug(f"Regions Color {self.region_colors}")
 
     def connect(self):
-        self._connect_to_model(self.GAME_MANAGER.MODEL_MANAGER)
+        super().connect()
         self._menu_button_position = (
             self.GAME_MANAGER.MENU_OVERLAY.overlay_buttons[-1]
             .get_abs_rect()
             .bottomleft
         )
-
-    def _connect_to_model(self, MODEL_MANAGER: ModelManager):
-        """Connect the plots display to the models."""
-        self.model_outputs = MODEL_MANAGER.outputs
-        self.MODEL_MANAGER = MODEL_MANAGER
-
-        # Create a df containing regions and alements
-        self.df_keys = self.model_outputs.keys().to_frame(index=False)
-
-        # Load the plots
-        plots_dir = pathlib.Path(self.GAME.GAME_DIR, "plots")
-        if not plots_dir.exists():
-            plots_dir.mkdir()
-        plots_files = list(plots_dir.rglob("*.py"))
-        # Read what is in the files
-        for file in plots_files:
-            SourceFileLoader("", str(file)).load_module()
-
-        self.logger.debug(f"Files: {plots_files}")
-        # Register connected
-        self._connected = True
 
     # Adding plots methods
 
@@ -204,21 +181,16 @@ class PlotsManager(AbstractPlotsManager):
         """
         return pygame.Rect(0, 0, 300, 300)
 
-    def add_plot(self, name: str, plot: Plot):
+    def register_plot(self, plot: Plot):
         """Add a :py:class:`Plot` to the manager."""
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.debug(f"Adding {plot = }")
-        self.logger.debug(f"{plot.plot_lines = }")
-        if name in self.plots.keys():
-            # Already there
-            self.logger.warn(f"{name} already in plots.")
-            return
-        self.plots[name] = plot
-        self._figsurface_locks[name] = threading.Lock()
+        super().register_plot(plot)
+
+        # Also create the locks and surface for it
+        self._figsurface_locks[plot.name] = threading.Lock()
         self.logger.debug(f"Lock created : {self._figsurface_locks[name]}")
 
         if self._connected:
-            self._create_plot_window(name)
+            self._create_plot_window(plot.name)
         self.logger.setLevel(logging.INFO)
 
     def _create_plot_window(self, plot_name: str | Plot):
@@ -291,11 +263,11 @@ class PlotsManager(AbstractPlotsManager):
     def process_events(self, event: pygame.event.Event) -> bool:
         """Process the events from the main loop."""
         self._UI_MANAGER.process_events(event)
+
+        if super().process_events(event):
+            return True
+
         match event:
-            case pygame.event.EventType(
-                type=pygame_gui.UI_BUTTON_PRESSED, ui_object_id="#plots_button"
-            ):
-                self.show_plots_list()
             case pygame.event.EventType(type=pygame_gui.UI_BUTTON_PRESSED):
                 if event.ui_element in self._plot_list_buttons:
                     self.logger.info(f"Create Plot {event.ui_element.text}")
@@ -303,12 +275,13 @@ class PlotsManager(AbstractPlotsManager):
                     # Deletes all the buttons
                     for button in self._plot_list_buttons:
                         button.hide()
+                    return True
             case pygame.event.EventType(type=pygame_gui.UI_WINDOW_CLOSE):
                 if event.ui_element in self.ui_plot_windows:
                     # Remove the window
                     window: UIPlotWindow = event.ui_element
                     del self.ui_plot_windows[window.window_display_title]
-
+                    return True
             case pygame.event.EventType(type=pysimgame.ModelStepped):
                 # Update the plot on a separated thread
                 if (

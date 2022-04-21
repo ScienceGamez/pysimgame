@@ -23,15 +23,17 @@ from pygame_gui.ui_manager import UIManager
 import pysimgame
 from pysimgame.actions.actions import ActionsManager
 from pysimgame.actions.gui import ActionsGUIManager
-from pysimgame.game import Game
+from pysimgame.game import FakeGame, Game
 from pysimgame.links.manager import LinksManager
 from pysimgame.speed import SpeedManager
 from pysimgame.statistics import StatisticsDisplayManager
 from pysimgame.utils import logging
+from pysimgame.utils.abstract_managers import AbstractGameManager
 
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .model import ModelManager, Policy
-from .plotting.manager import PlotsManager
+from .plotting.base import AbstractPlotsManager
+from .plotting.pyside.manager import QtPlotManager
 from .regions_display import (
     RegionComponent,
     RegionsManager,
@@ -54,22 +56,8 @@ if TYPE_CHECKING:
 
 BACKGROUND_COLOR = "black"
 
-_GAME_MANAGER: GameManager = None
 
-
-def get_game_manager() -> GameManager:
-    if _GAME_MANAGER is not None:
-        return _GAME_MANAGER
-    else:
-        game_manager = GameManager()
-        return get_game_manager()
-
-
-def get_model_manager() -> ModelManager:
-    return get_game_manager().MODEL_MANAGER
-
-
-class GameManager(GameComponentManager):
+class GameManager(AbstractGameManager):
     """Main component of the game.
 
     Organizes the other components managers from the game.
@@ -85,9 +73,21 @@ class GameManager(GameComponentManager):
 
     # Components managers
     MANAGERS: Dict[str, GameComponentManager]
-    _manager_classes = List[Type[GameComponentManager]]
+
+    # Set the manager classes this main manager is using
+    _manager_classes: List[Type[GameComponentManager]] = [
+        RegionsManager,
+        MenuOverlayManager,
+        QtPlotManager,
+        ModelManager,
+        ActionsGUIManager,
+        StatisticsDisplayManager,
+        ActionsManager,
+        SpeedManager,
+        LinksManager,
+    ]
     MODEL_MANAGER: ModelManager
-    PLOTS_MANAGER: PlotsManager
+    PLOTS_MANAGER: AbstractPlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
     ACTIONS_MANAGER: ActionsManager
     REGIONS_MANAGER: RegionsManager
@@ -102,27 +102,6 @@ class GameManager(GameComponentManager):
     RIGHT_PANEL: pygame.Rect
     # Stores the policies waiting to be processed
     policy_queue: Queue[Policy]
-
-    def __init__(self) -> None:
-        """Override the main :py:class:`GameManager` is the main organizer."""
-        self._set_logger()
-        global _GAME_MANAGER
-        if _GAME_MANAGER is None:
-            _GAME_MANAGER = self
-        # TODO, see if there is a better way to set that
-        # Think about modding(different games), threading,  and UI positioning
-        self._manager_classes = [
-            RegionsManager,
-            MenuOverlayManager,
-            PlotsManager,
-            ModelManager,
-            ActionsGUIManager,
-            StatisticsDisplayManager,
-            ActionsManager,
-            SpeedManager,
-            LinksManager,
-        ]
-        self.MANAGERS = {}
 
     # region Properties
     @property
@@ -229,7 +208,7 @@ class GameManager(GameComponentManager):
         # TODO: make this more moddable by using different classes ?
         # Ex. a find ___ manager method
         self.MODEL_MANAGER = self.MANAGERS[ModelManager]
-        self.PLOTS_MANAGER = self.MANAGERS[PlotsManager]
+        self.PLOTS_MANAGER = self.MANAGERS[QtPlotManager]
         self.STATISTICS_MANAGER = self.MANAGERS[StatisticsDisplayManager]
         self.ACTIONS_MANAGER = self.MANAGERS[ActionsManager]
         self.REGIONS_MANAGER = self.MANAGERS[RegionsManager]
