@@ -21,18 +21,16 @@ Games
 -----
 
 You will also need a game, which can be downloaded from
-the git repositories.
-```
-python -m pysimgame example --clone https://github.com/ScienceGamez/example-game
-```
+the git repositories ::
+
+    python -m pysimgame example --clone https://github.com/ScienceGamez/example-game
+
 
 This download the game located on the github repository
 https://github.com/ScienceGamez/example-game
 ,
 and store it locally with the name `example`
 
-you can then start the game you downloaded by
+you can then start the game you downloaded by ::
 
-```
-python -m pysimgame example
-```
+    python -m pysimgame example
