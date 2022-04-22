@@ -27,13 +27,19 @@ if TYPE_CHECKING:
     from pysimgame.types import RegionsDict, ModelType
 
 
-def guess_game_name_from_clone_arg(arg: str) -> str:
-    """Guess the name of the game from the --clone argument."""
-    if "/" in arg:
+def guess_game_name_from_clone_arg(clone_arg: str) -> str:
+    """Guess the name of the game from the --clone argument.
+    
+    :arg clone_arg: The str given by the user for the clone argument.
+        Usually a git link as `https://github.com/ScienceGamez/world-3.git`..
+    """
+    if "/" in clone_arg:
         # If url, probably the last value is used as game name
-        return arg.split("/")[-1]
+        last_value = clone_arg.split("/")[-1]
+        # The last value might have a . inside
+        return last_value.split('.')[0]
     else:
-        arg
+        return clone_arg
 
 
 def list_available_games(games_dir: Path = PYSDGAME_DIR) -> list[Game]:
