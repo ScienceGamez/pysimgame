@@ -66,7 +66,7 @@ class Plot:
 
 
 class LinePlot(Plot):
-    """A standart line plot.
+    """Plot simple lines.
 
     You can specify either :py:class:`PlotLine` which correspond
     to a region and an attribute, or specify the name of the

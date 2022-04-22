@@ -1,1 +1,1 @@
-from .plot import Plot, PlotLine
+from .plot import Plot, PlotLine, LinePlot, MplPlot
