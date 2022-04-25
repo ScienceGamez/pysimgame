@@ -31,6 +31,13 @@ class AbstractPlotsManager(GameComponentManager):
     this managers handles the creation of a special thread
     calling :py:meth:`AbstractPlotsManager.draw` .
 
+    You define how each plot are selected to be opened by the user and 
+    how they should display.
+    The different Plot classes all inherit from :py:class:`Plot` .
+    Your implementations should follow all the ones from the 
+    :py:module:`pysimgame.plotting` or warn the user if some are not 
+    defined.
+
     TODO: finalize implementation
     1. Make the thread for the draw function.
     """
@@ -100,7 +107,7 @@ class AbstractPlotsManager(GameComponentManager):
 
     @abstractmethod
     def draw(self):
-        """Draw the plot.
+        """Draw (update) the plots.
 
         This will be called on a separate thread,
         so make sure that when you write a variable

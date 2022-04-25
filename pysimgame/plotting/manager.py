@@ -187,7 +187,7 @@ class PlotsManager(AbstractPlotsManager):
 
         # Also create the locks and surface for it
         self._figsurface_locks[plot.name] = threading.Lock()
-        self.logger.debug(f"Lock created : {self._figsurface_locks[name]}")
+        self.logger.debug(f"Lock created : {self._figsurface_locks[plot.name]}")
 
         if self._connected:
             self._create_plot_window(plot.name)

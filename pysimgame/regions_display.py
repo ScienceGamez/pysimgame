@@ -212,7 +212,7 @@ class IlluminatisHQ(RegionComponent):
     Can implement easter eggs with it ?
     """
 
-    def __init__(self, surface):
+    def __init__(self, surface = None):
         # Find optimal equidistant triangle using x = sqrt(3)/2*y
         # (0,0), (x, 0), (x/2, y)
         triangle = [

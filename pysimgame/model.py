@@ -24,6 +24,7 @@ from .utils.logging import logger_enter_exit
 
 if TYPE_CHECKING:
     import pysd
+    from pysimgame.types import AttributeName
 
     from pysimgame.types import ExportImportMethod
     from pysimgame.ml.types import TestVariables, TrainVariables
@@ -86,6 +87,8 @@ class AbstractModelManager(GameComponentManager):
     models: dict[RegionName, ModelType]
     model_lock: Lock
 
+    data: dict[(RegionName, AttributeName), pd.Series]
+
     def accept_ml_vars_mngr(
         self, ml_manager: MLVarMngr
     ) -> tuple[TrainVariables, TestVariables]:
@@ -133,6 +136,8 @@ class ModelManager(AbstractModelManager):
             self._load_models()
 
         return self._model.components
+    
+
 
     @cached_property
     def doc(self) -> Dict[str, Dict[str, str]]:
@@ -288,6 +293,7 @@ class ModelManager(AbstractModelManager):
         )
         self.logger.debug(f"Created Index {index}")
         self.outputs = pd.DataFrame(columns=index)
+        self.data = self.outputs
         # Sort the indexes for performance
         self.outputs.sort_index()
 

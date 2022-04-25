@@ -64,6 +64,8 @@ class Plot:
 
         _PLOT_MANAGER.register_plot(self)
 
+    def __str__(self) -> str:
+        return f"pysimgame Plot {self.name}"
 
 class LinePlot(Plot):
     """Plot simple lines.

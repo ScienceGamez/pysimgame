@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING, Any
-from pysimgame.regions_display import RegionComponent, SingleRegionComponent
+from pysimgame.regions_display import IlluminatisHQ, RegionComponent, SingleRegionComponent
 
 from pysimgame.utils.directories import (
     FORBIDDEN_GAME_NAMES,
@@ -336,3 +336,4 @@ class FakeGame(Game):
 
     def __init__(self) -> None:
         self.NAME = "_fake_game"
+        self.REGIONS_DICT = {"fake region": IlluminatisHQ()}
