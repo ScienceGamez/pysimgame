@@ -1,7 +1,7 @@
 """Contain a class that makes the game management."""
 from __future__ import annotations
 
-import concurrent.futures
+
 import json
 import os
 import pathlib
@@ -33,7 +33,7 @@ from pysimgame.utils.abstract_managers import AbstractGameManager
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .model import ModelManager, Policy
 from .plotting.base import AbstractPlotsManager
-from .plotting.pyside.manager import QtPlotManager
+
 from .regions_display import (
     RegionComponent,
     RegionsManager,
@@ -65,9 +65,7 @@ class GameManager(AbstractGameManager):
     """
 
     ## GAME manager MUST be run on a main thread !
-    _game: Game
-    _model_fps: float = 1
-    fps_counter: int = 0
+
     _is_loading: bool = False
     _loading_screen_thread: Thread
 
@@ -78,7 +76,6 @@ class GameManager(AbstractGameManager):
     _manager_classes: List[Type[GameComponentManager]] = [
         RegionsManager,
         MenuOverlayManager,
-        QtPlotManager,
         ModelManager,
         ActionsGUIManager,
         StatisticsDisplayManager,
@@ -104,23 +101,6 @@ class GameManager(AbstractGameManager):
     policy_queue: Queue[Policy]
 
     # region Properties
-    @property
-    def GAME(self) -> Game:
-        """A :py:class:`Game` instance for the current game managed."""
-        return self._game
-
-    @property
-    def game(self) -> Game:
-        """A :py:class:`Game` instance for the current game managed."""
-        return self._game
-
-    @game.setter
-    def game(self, game: Tuple[Game, str]):
-        if isinstance(game, str):
-            # Creates the game object required
-            game = Game(game)
-        self._game = game
-        self.logger.info(f"New game set: '{self.game.NAME}'.")
 
     @property
     def MAIN_DISPLAY(self) -> pygame.Surface:
@@ -142,9 +122,7 @@ class GameManager(AbstractGameManager):
     # region Loading
 
     def prepare(self):
-        self._prepare_components()
 
-    def _prepare_components(self):
         # Regions have to be loaded first as they are used by the othres
         self.logger.info("[START] Prepare to start new game.")
         self._is_loading = True
@@ -170,40 +148,7 @@ class GameManager(AbstractGameManager):
         )
         loading_thread.start()
 
-        def start_manager(manager_class: Type[GameComponentManager]):
-            """Start a game manager component.
-
-            Call the prepare method, that is not dependent on other component.
-            """
-            manager = manager_class(self)
-            manager.prepare()
-            return manager
-
-        # We lauch threads here
-        # At the moment it is not very efficient as all is loaded from
-        # local ressource but in the future we might want to have some
-        # networking processes to download some content.
-        with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="ManagerPrepare"
-        ) as executor:
-
-            future_to_manager = {
-                executor.submit(start_manager, manager_class): manager_class
-                for manager_class in self._manager_classes
-            }
-            # Wait for the threads to finish
-            for future in concurrent.futures.as_completed(future_to_manager):
-                manager_class = future_to_manager[future]
-                try:
-                    manager = future.result()
-                except Exception as exc:
-                    raise Exception(
-                        f"Could not prepare {manager_class}."
-                    ) from exc
-                else:
-                    self.MANAGERS[manager_class] = manager
-
-        self.logger.debug(f"MANAGERS : {self.MANAGERS}")
+        super().prepare()
         # Assign some specific managers as variable
         # TODO: make this more moddable by using different classes ?
         # Ex. a find ___ manager method
@@ -228,11 +173,6 @@ class GameManager(AbstractGameManager):
             "[FINISHED] Prepare to start new game. "
             "Loading Time: {} sec.".format(time.time() - start_time)
         )
-
-    def connect(self):
-        # Components are ready, we can connect them together
-        for manager in self.MANAGERS.values():
-            manager.connect()
 
     @logger_enter_exit()
     def _loading_loop(self):
@@ -275,16 +215,6 @@ class GameManager(AbstractGameManager):
         return self.MAIN_DISPLAY
 
     # endregion Loading
-    def load(self, save_file: pathlib.Path):
-        """Load a game from the save.
-
-        TODO: Implement
-        Idea: make every manager save in a file what they need and then
-        compress into a file.
-        """
-        save_dir = save_file.parent
-        for manager in self.MANAGERS.values():
-            manager.load(save_dir)
 
     def start_new_game(
         self, game: Tuple[Game, str], from_save: pathlib.Path = None
@@ -325,47 +255,13 @@ class GameManager(AbstractGameManager):
         self.logger.debug(f"[START] run_game_loop")
 
         while True:
-            self.logger.debug(f"[START] iteration of run_game_loop")
-            self.fps_counter += 1
+            self.game_loop()
             time_delta = self.CLOCK.tick(self.game.SETTINGS.get("FPS", 20))
             ms = self.CLOCK.get_rawtime()
             self.logger.debug(
                 f"Game loop executed in {ms} ms, ticked {time_delta} ms."
             )
-            events = pygame.event.get()
-            self.logger.debug(f"Events: {events}")
-            # Lood for quit events
-            for event in events:
-                self.process_event(event)
-
             self.draw(time_delta)
-
-    def process_event(self, event: Event):
-        self.logger.debug(f"Processing {event}")
-        self.UI_MANAGER.process_events(event)
-        match event:
-            case EventType(type=pygame.QUIT):
-                self._managers_process_event(event)
-                pygame.quit()
-                sys.exit()
-            case EventType(type=pygame.TEXTINPUT):
-                if self._process_textinput_event(event):
-                    # Consumed event
-                    return
-            case EventType(type=pygame.KEYDOWN):
-                # NOTE: Only handle events that are not already handled
-                # by pygame.TEXTINPUT events
-                if self._process_keydown_event(event):
-                    # Consumed event
-                    return
-
-        self._managers_process_event(event)
-
-    def _managers_process_event(self, event):
-        for manager in self.MANAGERS.values():
-            if manager.process_events(event):
-                # Consumed event are blocked for other managers
-                return
 
     def _start_new_model_thread(self):
         """Start a new thread for the model.
@@ -409,16 +305,6 @@ class GameManager(AbstractGameManager):
 
                 self.change_model_pause_state()
                 return True
-
-    def _process_keydown_event(self, event) -> bool:
-        """Process key down events.
-
-        Should only process events that are not already processed in
-        :py:meth:`_process_textinput_event` .
-        """
-        match event.key:
-            case pygame.K_ESCAPE:
-                self.post(pygame.QUIT)
 
     def draw(self, time_delta: float):
         """Draw the game components on the main display.

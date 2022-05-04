@@ -1,7 +1,6 @@
 """Helper for Game definition from pysimgame."""
 from __future__ import annotations
 from functools import cached_property
-from numpy import True_
 
 from packaging.version import Version
 import git
@@ -11,7 +10,11 @@ import logging
 from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING, Any
-from pysimgame.regions_display import IlluminatisHQ, RegionComponent, SingleRegionComponent
+from pysimgame.regions_display import (
+    IlluminatisHQ,
+    RegionComponent,
+    SingleRegionComponent,
+)
 
 from pysimgame.utils.directories import (
     FORBIDDEN_GAME_NAMES,
@@ -29,7 +32,7 @@ if TYPE_CHECKING:
 
 def guess_game_name_from_clone_arg(clone_arg: str) -> str:
     """Guess the name of the game from the --clone argument.
-    
+
     :arg clone_arg: The str given by the user for the clone argument.
         Usually a git link as `https://github.com/ScienceGamez/world-3.git`..
     """
@@ -37,7 +40,7 @@ def guess_game_name_from_clone_arg(clone_arg: str) -> str:
         # If url, probably the last value is used as game name
         last_value = clone_arg.split("/")[-1]
         # The last value might have a . inside
-        return last_value.split('.')[0]
+        return last_value.split(".")[0]
     else:
         return clone_arg
 
