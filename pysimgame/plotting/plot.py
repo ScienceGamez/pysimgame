@@ -67,8 +67,9 @@ class Plot:
     def __str__(self) -> str:
         return f"pysimgame Plot {self.name}"
 
+
 class LinePlot(Plot):
-    """Plot simple lines.
+    """A simple line plot.
 
     You can specify either :py:class:`PlotLine` which correspond
     to a region and an attribute, or specify the name of the

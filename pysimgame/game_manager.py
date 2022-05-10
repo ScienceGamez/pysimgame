@@ -28,7 +28,7 @@ from pysimgame.links.manager import LinksManager
 from pysimgame.speed import SpeedManager
 from pysimgame.statistics import StatisticsDisplayManager
 from pysimgame.utils import logging
-from pysimgame.utils.abstract_managers import AbstractGameManager
+from pysimgame.game_managers.abstract import AbstractGameManager
 
 from .menu import MenuOverlayManager, SettingsMenuManager
 from .model import ModelManager, Policy

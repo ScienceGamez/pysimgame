@@ -17,7 +17,7 @@ from pysimgame.utils import register_logger
 
 if TYPE_CHECKING:
     from pysimgame.game import Game
-    from pysimgame.game_managers.abstact import AbstractGameManager
+    from pysimgame.game_managers.abstract import AbstractGameManager
 
 
 class GameComponentManager(ABC):
