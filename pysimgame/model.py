@@ -113,7 +113,6 @@ class ModelManager(AbstractModelManager):
     """
 
     GAME_MANAGER: GameManager
-    PLOTS_MANAGER: PlotsManager
 
     _elements_names: List[str] = None  # Used to internally store elements
     capture_attributes: List[str]
@@ -136,8 +135,6 @@ class ModelManager(AbstractModelManager):
             self._load_models()
 
         return self._model.components
-    
-
 
     @cached_property
     def doc(self) -> Dict[str, Dict[str, str]]:
@@ -445,12 +442,8 @@ class ModelManager(AbstractModelManager):
         self.logger.debug(f"Set captured elements: {elements}")
 
     def connect(self):
-        """Connect the components required by the Model Manager.
-
-        PLOTS_MANAGER is required as it will be called when the
-        model has finished a step.
-        """
-        self.PLOTS_MANAGER = self.GAME_MANAGER.PLOTS_MANAGER
+        """Connect the components required by the Model Manager."""
+        pass
 
     # region Links
     @singledispatchmethod

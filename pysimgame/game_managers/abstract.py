@@ -44,7 +44,6 @@ class AbstractGameManager(GameComponentManager):
 
     # Mandatory managers
     MODEL_MANAGER: ModelManager
-    PLOTS_MANAGER: AbstractPlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
     ACTIONS_MANAGER: ActionsManager
     REGIONS_MANAGER: RegionsManager

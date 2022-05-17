@@ -84,7 +84,6 @@ class GameManager(AbstractGameManager):
         LinksManager,
     ]
     MODEL_MANAGER: ModelManager
-    PLOTS_MANAGER: AbstractPlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
     ACTIONS_MANAGER: ActionsManager
     REGIONS_MANAGER: RegionsManager
@@ -153,7 +152,6 @@ class GameManager(AbstractGameManager):
         # TODO: make this more moddable by using different classes ?
         # Ex. a find ___ manager method
         self.MODEL_MANAGER = self.MANAGERS[ModelManager]
-        self.PLOTS_MANAGER = self.MANAGERS[QtPlotManager]
         self.STATISTICS_MANAGER = self.MANAGERS[StatisticsDisplayManager]
         self.ACTIONS_MANAGER = self.MANAGERS[ActionsManager]
         self.REGIONS_MANAGER = self.MANAGERS[RegionsManager]

@@ -30,7 +30,6 @@ from pygame_gui.elements import UIButton
 class MenuOverlayManager(GameComponentManager):
     """Class that handles the menu of the game."""
 
-    PLOTS_MANAGER: PlotsManager
     STATISTICS_MANAGER: StatisticsDisplayManager
     UI_MANAGER: UIManager
 
@@ -99,7 +98,6 @@ class MenuOverlayManager(GameComponentManager):
         ]
 
     def connect(self):
-        self.PLOTS_MANAGER = self.GAME_MANAGER.PLOTS_MANAGER
         self.STATISTICS_MANAGER = self.GAME_MANAGER.STATISTICS_MANAGER
 
     def process_events(self, event: Event):
