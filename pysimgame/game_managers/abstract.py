@@ -9,9 +9,10 @@ from typing import TYPE_CHECKING, Type
 from pysimgame.game import Game
 from pysimgame.utils.abstract_managers import GameComponentManager
 
+import pygame
+from pygame.event import Event, EventType
+
 if TYPE_CHECKING:
-    import pygame
-    from pygame.event import Event, EventType
 
     from pysimgame.actions.actions import ActionsManager
     from pysimgame.menu import MenuOverlayManager
